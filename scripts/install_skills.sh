@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 
 SKILLS_DIR="${JUSTSELL_SKILLS_DIR:-}"
 if [[ -z "$SKILLS_DIR" ]]; then

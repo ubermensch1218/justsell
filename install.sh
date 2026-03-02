@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 SKILLS_DIR="$CLAUDE_HOME/skills"

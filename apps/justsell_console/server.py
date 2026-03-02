@@ -26,7 +26,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # - Installed tool storage (default): ~/.claude/.omc/justsell/
 # - Console state/logs/events: <JUSTSELL_HOME>/console/
 # - Settings + OAuth tokens: <JUSTSELL_HOME>/config.json
-CLAUDE_HOME = Path(_env("CLAUDE_HOME", str(Path.home() / ".claude"))).expanduser()
+CLAUDE_HOME = Path(
+  _env(
+    "CLAUDE_CONFIG_DIR",
+    _env("CLAUDE_HOME", str(Path.home() / ".claude")),
+  )
+).expanduser()
 OMC_HOME = Path(_env("OMC_HOME", str(CLAUDE_HOME / ".omc"))).expanduser()
 JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(OMC_HOME / "justsell"))).expanduser()
 JUSTSELL_HOME.mkdir(parents=True, exist_ok=True)
