@@ -8,7 +8,7 @@ CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 SKILLS_DIR="$CLAUDE_HOME/skills"
 COMMANDS_DIR="$CLAUDE_HOME/commands"
-JS_DIR="$CLAUDE_HOME/.js/justsell"
+JS_DIR="$CLAUDE_HOME/.js"
 JS_BIN_DIR="$CLAUDE_HOME/.js/bin"
 
 mkdir -p "$SKILLS_DIR" "$COMMANDS_DIR" "$JS_DIR/console" "$JS_BIN_DIR"

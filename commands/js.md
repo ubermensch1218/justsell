@@ -7,7 +7,7 @@ $ARGUMENTS
 You are operating the `justsell` plugin.
 
 Non-negotiable rules:
-- Local-first: store all state under `~/.claude/.js/justsell/` (respect `CLAUDE_CONFIG_DIR`).
+- Local-first: store all state under `~/.claude/.js/` (respect `CLAUDE_CONFIG_DIR`).
 - Explicit publishing: default to dry-run unless the user explicitly confirms.
 - No hardcoded URLs: use env vars or `config.json`.
 - No emojis.
@@ -15,7 +15,7 @@ Non-negotiable rules:
 Interpret `$ARGUMENTS` as a subcommand:
 
 1) `init`
-- Goal: wizard-like local setup (OMC-feel) that writes config under `~/.claude/.js/justsell/` and then completes OAuth in the console.
+- Goal: wizard-like local setup (OMC-feel) that writes config under `~/.claude/.js/` and then completes OAuth in the console.
 - Action:
   1) Run the setup wizard (writes `config.json`):
   ```bash

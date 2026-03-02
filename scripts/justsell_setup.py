@@ -124,9 +124,9 @@ def _available_cardnews_templates() -> list[str]:
         continue
 
   # User templates (local-first; survive repo/plugin updates):
-  # ~/.claude/.js/justsell/templates/instagram/<anything>.yaml|yml|json
+  # ~/.claude/.js/templates/instagram/<anything>.yaml|yml|json
   try:
-    user_dir = _claude_dir() / ".js" / "justsell" / "templates" / "instagram"
+    user_dir = _claude_dir() / ".js" / "templates" / "instagram"
     if user_dir.exists():
       for p in sorted(user_dir.glob("*")):
         if not p.is_file():
@@ -354,7 +354,7 @@ def _wizard(config_path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-  p = argparse.ArgumentParser(description="Write JustSell plugin config into ~/.claude/.js/justsell/config.json")
+  p = argparse.ArgumentParser(description="Write JustSell plugin config into ~/.claude/.js/config.json")
   p.add_argument("--claude-dir", type=Path, default=None, help="Override Claude config dir (default: env CLAUDE_CONFIG_DIR or ~/.claude)")
   p.add_argument("--wizard", action="store_true", help="Interactive wizard (recommended for /js init)")
   p.add_argument("--dry-run", action="store_true", help="Do not write config.json (print path only)")
@@ -385,8 +385,8 @@ def main() -> int:
   args = p.parse_args()
 
   claude_dir = args.claude_dir.expanduser() if args.claude_dir else _claude_dir()
-  justsell_dir = claude_dir / ".js" / "justsell"
-  config_path = justsell_dir / "config.json"
+  js_dir = claude_dir / ".js"
+  config_path = js_dir / "config.json"
 
   if args.wizard:
     cfg = _wizard(config_path)

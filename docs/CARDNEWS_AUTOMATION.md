@@ -11,7 +11,7 @@
 
 ### 사용자 템플릿(업데이트에 안 날아가게)
 플러그인/레포 업데이트와 상관없이 “내 템플릿 폴더”에 두고 쓰려면:
-- `~/.claude/.js/justsell/templates/instagram/`
+- `~/.claude/.js/templates/instagram/`
 - 확장자: `.yaml`, `.yml`, `.json`
 
 콘솔 `/connect`의 Template 드롭다운과 `/js init` 위저드에서 자동으로 목록에 뜹니다.

@@ -24,7 +24,7 @@ def _env(name: str, default: str = "") -> str:
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Storage locations:
-# - Installed tool storage (default): ~/.claude/.js/justsell/
+# - Installed tool storage (default): ~/.claude/.js/
 # - Console state/logs/events: <JUSTSELL_HOME>/console/
 # - Settings + OAuth tokens: <JUSTSELL_HOME>/config.json
 CLAUDE_HOME = Path(
@@ -33,8 +33,7 @@ CLAUDE_HOME = Path(
     _env("CLAUDE_HOME", str(Path.home() / ".claude")),
   )
 ).expanduser()
-JS_HOME = Path(_env("JS_HOME", str(CLAUDE_HOME / ".js"))).expanduser()
-JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(JS_HOME / "justsell"))).expanduser()
+JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(CLAUDE_HOME / ".js"))).expanduser()
 JUSTSELL_HOME.mkdir(parents=True, exist_ok=True)
 
 CONFIG_PATH = Path(_env("JUSTSELL_CONFIG_PATH", str(JUSTSELL_HOME / "config.json"))).expanduser()
@@ -290,7 +289,7 @@ def _available_cardnews_templates() -> list[str]:
 
   # 2) User templates (local-first; survive repo/plugin updates)
   # Drop files here:
-  # - ~/.claude/.js/justsell/templates/instagram/<anything>.yaml|yml|json
+  # - ~/.claude/.js/templates/instagram/<anything>.yaml|yml|json
   user_dir = JUSTSELL_HOME / "templates" / "instagram"
   if user_dir.exists():
     for p in sorted(user_dir.glob("*")):
@@ -1348,8 +1347,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
   body = f"""
   <div class="card" style="padding:14px">
     <h2 style="padding:0;margin:0 0 8px 0">Setup</h2>
-    <div class="hint">Config: <code>~/.claude/.js/justsell/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
-    <div class="hint">Custom templates: put YAML/JSON files in <code>~/.claude/.js/justsell/templates/instagram/</code> and they appear in the dropdown.</div>
+    <div class="hint">Config: <code>~/.claude/.js/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
+    <div class="hint">Custom templates: put YAML/JSON files in <code>~/.claude/.js/templates/instagram/</code> and they appear in the dropdown.</div>
     <form method="POST" action="/api/config/update" style="margin-top:12px">
       <div class="grid2">
         <div class="field">
@@ -1511,7 +1510,7 @@ def _events_page() -> bytes:
   ev_path = _event_path("events")
   raw = ev_path.read_text(encoding="utf-8") if ev_path.exists() else ""
   pre = (
-        "<div class='hint'>Events: <code>~/.claude/.js/justsell/console/events/events-YYYY-MM-DD.jsonl</code></div>"
+        "<div class='hint'>Events: <code>~/.claude/.js/console/events/events-YYYY-MM-DD.jsonl</code></div>"
     "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
     + (raw[-12000:] if raw else "(empty)")
     + "</pre>"
@@ -1723,7 +1722,7 @@ class Handler(BaseHTTPRequestHandler):
     if path == "/logs":
       raw = LOG_PATH.read_text(encoding="utf-8") if LOG_PATH.exists() else ""
       pre = (
-        "<div class='hint'>Logs: <code>~/.claude/.js/justsell/console/console.log</code></div>"
+        "<div class='hint'>Logs: <code>~/.claude/.js/console/console.log</code></div>"
         "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
         + (raw[-12000:] if raw else "(empty)")
         + "</pre>"
@@ -1735,7 +1734,7 @@ class Handler(BaseHTTPRequestHandler):
       chat_path = _event_path("chat")
       raw = chat_path.read_text(encoding="utf-8") if chat_path.exists() else ""
       pre = (
-        "<div class='hint'>Chat log: <code>~/.claude/.js/justsell/console/events/chat-YYYY-MM-DD.jsonl</code></div>"
+        "<div class='hint'>Chat log: <code>~/.claude/.js/console/events/chat-YYYY-MM-DD.jsonl</code></div>"
         "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
         + (raw[-12000:] if raw else "(empty)")
         + "</pre>"

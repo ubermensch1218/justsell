@@ -472,7 +472,7 @@ def _read_config_settings() -> dict[str, Any]:
     cfg_path = Path(os.environ.get("JUSTSELL_CONFIG_PATH", "")).expanduser()
   else:
     base = _claude_dir()
-    cfg_path = base / ".js" / "justsell" / "config.json"
+    cfg_path = base / ".js" / "config.json"
   try:
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
   except Exception:

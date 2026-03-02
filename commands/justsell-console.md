@@ -7,9 +7,9 @@ $ARGUMENTS
 You are operating JustSellConsole (local-first marketing console).
 
 Rules:
-- Keep data local under `~/.claude/.js/justsell/`.
+- Keep data local under `~/.claude/.js/`.
 - OAuth and publish must be explicit. Default to dry-run unless user says to confirm.
-- Do not hardcode URLs. Use env vars or `~/.claude/.js/justsell/config.json`.
+- Do not hardcode URLs. Use env vars or `~/.claude/.js/config.json`.
 
 Steps:
 1) Start the console:

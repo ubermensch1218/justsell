@@ -13,4 +13,4 @@ fi
 rm -f "$CLAUDE_HOME/.js/bin/js" || true
 
 echo "Uninstalled command files and skill-pack symlink."
-echo "Kept local state under: $CLAUDE_HOME/.js/justsell (delete manually if needed)."
+echo "Kept local state under: $CLAUDE_HOME/.js (delete manually if needed)."
