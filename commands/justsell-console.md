@@ -30,7 +30,7 @@ test -n "$JS_ROOT"
 
 1) Start the console:
 ```bash
-"$JS_ROOT/bin/js" console
+"$JS_ROOT/bin/js" start --mode console
 ```
 
 2) Open:

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from urllib.request import urlopen
 import webbrowser
 from pathlib import Path
 
@@ -139,6 +140,62 @@ def cmd_status(_: argparse.Namespace) -> int:
   return 0
 
 
+def _is_up(host: str, port: int) -> bool:
+  url = f"http://{host}:{port}/api/onboarding"
+  try:
+    with urlopen(url, timeout=1.5) as resp:
+      return int(getattr(resp, "status", 0) or 0) == 200
+  except Exception:
+    return False
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+  port = int(_env("JUSTSELL_CONSOLE_PORT", str(args.port)))
+  host = str(args.host).strip()
+  mode = str(args.mode).strip()
+  if mode not in ["config", "console"]:
+    mode = "config"
+
+  target_url = f"http://{host}:{port}/connect" if mode == "config" else f"http://{host}:{port}/"
+  if _is_up(host, port):
+    _print_header("JustSell Console")
+    print(f"[i] Already running: {target_url}")
+    _open_url(target_url, no_open=bool(args.no_open))
+    return 0
+
+  # Start a detached server without relying on shell background/redirection.
+  cmd = [
+    "python3",
+    str(REPO_ROOT / "scripts" / "js.py"),
+    mode,
+    "--host",
+    host,
+    "--port",
+    str(port),
+    "--no-open",
+  ]
+  try:
+    p = subprocess.Popen(
+      cmd,
+      cwd=str(REPO_ROOT),
+      stdout=subprocess.DEVNULL,
+      stderr=subprocess.DEVNULL,
+      start_new_session=True,
+      env=os.environ.copy(),
+    )
+  except Exception as e:
+    print(f"[!] Failed to start: {e}")
+    return 1
+
+  # Give it a moment, then open.
+  time.sleep(0.4)
+  _print_header("JustSell Console")
+  print(f"[i] PID: {p.pid}")
+  print(f"[i] Opening: {target_url}")
+  _open_url(target_url, no_open=bool(args.no_open))
+  return 0
+
+
 def cmd_config(args: argparse.Namespace) -> int:
   port = int(_env("JUSTSELL_CONSOLE_PORT", str(args.port)))
   host = str(args.host).strip()
@@ -235,6 +292,11 @@ def main() -> int:
   sp = sub.add_parser("init", help="Run wizard then open config dashboard")
   add_common(sp)
   sp.set_defaults(func=cmd_init)
+
+  sp = sub.add_parser("start", help="Start console in background and open browser")
+  add_common(sp)
+  sp.add_argument("--mode", default="config", help="config|console (default: config)")
+  sp.set_defaults(func=cmd_start)
 
   sp = sub.add_parser("status", help="Show local setup status")
   sp.set_defaults(func=cmd_status)

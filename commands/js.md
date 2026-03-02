@@ -36,9 +36,9 @@ PY
   test -n "$JS_ROOT"
   ```
 
-  1) Run init (wizard + dashboard):
+  1) Start the dashboard in background (no shell `&` tricks):
   ```bash
-  "$JS_ROOT/bin/js" init
+  "$JS_ROOT/bin/js" start --mode config
   ```
   - Note: Claude Code runs Bash without an interactive TTY, so the terminal wizard is skipped and you should use the `/connect` Setup section.
 
@@ -53,7 +53,7 @@ PY
 2) `console`
 - Start JustSellConsole at `http://127.0.0.1:5678/`:
 ```bash
-"$JS_ROOT/bin/js" console
+"$JS_ROOT/bin/js" start --mode console
 ```
 
 3) `cardnews`
