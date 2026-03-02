@@ -24,7 +24,7 @@ def _env(name: str, default: str = "") -> str:
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Storage locations:
-# - Installed tool storage (default): ~/.claude/.omc/justsell/
+# - Installed tool storage (default): ~/.claude/.js/justsell/
 # - Console state/logs/events: <JUSTSELL_HOME>/console/
 # - Settings + OAuth tokens: <JUSTSELL_HOME>/config.json
 CLAUDE_HOME = Path(
@@ -33,8 +33,12 @@ CLAUDE_HOME = Path(
     _env("CLAUDE_HOME", str(Path.home() / ".claude")),
   )
 ).expanduser()
-OMC_HOME = Path(_env("OMC_HOME", str(CLAUDE_HOME / ".omc"))).expanduser()
-JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(OMC_HOME / "justsell"))).expanduser()
+JS_HOME = Path(_env("JS_HOME", str(CLAUDE_HOME / ".js"))).expanduser()
+# Legacy support: older builds stored under ~/.claude/.omc/justsell/
+LEGACY_OMC_HOME = Path(_env("OMC_HOME", str(CLAUDE_HOME / ".omc"))).expanduser()
+LEGACY_JUSTSELL_HOME = LEGACY_OMC_HOME / "justsell"
+
+JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(JS_HOME / "justsell"))).expanduser()
 JUSTSELL_HOME.mkdir(parents=True, exist_ok=True)
 
 CONFIG_PATH = Path(_env("JUSTSELL_CONFIG_PATH", str(JUSTSELL_HOME / "config.json"))).expanduser()
@@ -57,6 +61,9 @@ HOME_JST_CONSOLE_DIR = Path.home() / ".jst" / "console"
 HOME_JST_SECRETS_PATH = HOME_JST_CONSOLE_DIR / "secrets.json"
 
 HOME_CCS_JUSTSELL_CONFIG_PATH = Path.home() / ".ccs" / "justsell" / "config.json"
+
+LEGACY_CONFIG_PATH = LEGACY_JUSTSELL_HOME / "config.json"
+LEGACY_SECRETS_FILE_PATH = LEGACY_JUSTSELL_HOME / "secrets.json"
 
 
 def _now_iso() -> str:
@@ -277,16 +284,29 @@ def _cardnews_env_overrides() -> dict[str, str]:
 
 
 def _available_cardnews_templates() -> list[str]:
-  tdir = REPO_ROOT / "channels" / "instagram" / "templates"
-  if not tdir.exists():
-    return []
   items: list[str] = []
-  for p in sorted(tdir.glob("cardnews.*.yaml")):
-    try:
-      rel = p.relative_to(REPO_ROOT)
-      items.append(str(rel))
-    except Exception:
-      continue
+  # 1) Repo-shipped templates (stable; good defaults)
+  tdir = REPO_ROOT / "channels" / "instagram" / "templates"
+  if tdir.exists():
+    for p in sorted(tdir.glob("cardnews.*.yaml")):
+      try:
+        rel = p.relative_to(REPO_ROOT)
+        items.append(str(rel))
+      except Exception:
+        continue
+
+  # 2) User templates (local-first; survive repo/plugin updates)
+  # Drop files here:
+  # - ~/.claude/.js/justsell/templates/instagram/<anything>.yaml|yml|json
+  user_dir = JUSTSELL_HOME / "templates" / "instagram"
+  if user_dir.exists():
+    for p in sorted(user_dir.glob("*")):
+      if not p.is_file():
+        continue
+      if p.suffix.lower() not in [".yaml", ".yml", ".json"]:
+        continue
+      items.append(str(p))
+
   return items
 
 
@@ -1335,7 +1355,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
   body = f"""
   <div class="card" style="padding:14px">
     <h2 style="padding:0;margin:0 0 8px 0">Setup</h2>
-    <div class="hint">Config: <code>~/.claude/.omc/justsell/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
+    <div class="hint">Config: <code>~/.claude/.js/justsell/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
+    <div class="hint">Custom templates: put YAML/JSON files in <code>~/.claude/.js/justsell/templates/instagram/</code> and they appear in the dropdown.</div>
     <form method="POST" action="/api/config/update" style="margin-top:12px">
       <div class="grid2">
         <div class="field">
@@ -1497,7 +1518,7 @@ def _events_page() -> bytes:
   ev_path = _event_path("events")
   raw = ev_path.read_text(encoding="utf-8") if ev_path.exists() else ""
   pre = (
-    "<div class='hint'>Events: <code>~/.claude/.omc/justsell/console/events/events-YYYY-MM-DD.jsonl</code></div>"
+        "<div class='hint'>Events: <code>~/.claude/.js/justsell/console/events/events-YYYY-MM-DD.jsonl</code></div>"
     "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
     + (raw[-12000:] if raw else "(empty)")
     + "</pre>"
@@ -1709,7 +1730,7 @@ class Handler(BaseHTTPRequestHandler):
     if path == "/logs":
       raw = LOG_PATH.read_text(encoding="utf-8") if LOG_PATH.exists() else ""
       pre = (
-        "<div class='hint'>Logs: <code>~/.claude/.omc/justsell/console/console.log</code></div>"
+        "<div class='hint'>Logs: <code>~/.claude/.js/justsell/console/console.log</code></div>"
         "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
         + (raw[-12000:] if raw else "(empty)")
         + "</pre>"
@@ -1721,7 +1742,7 @@ class Handler(BaseHTTPRequestHandler):
       chat_path = _event_path("chat")
       raw = chat_path.read_text(encoding="utf-8") if chat_path.exists() else ""
       pre = (
-        "<div class='hint'>Chat log: <code>~/.claude/.omc/justsell/console/events/chat-YYYY-MM-DD.jsonl</code></div>"
+        "<div class='hint'>Chat log: <code>~/.claude/.js/justsell/console/events/chat-YYYY-MM-DD.jsonl</code></div>"
         "<pre style='margin:0;padding:12px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;white-space:pre-wrap'>"
         + (raw[-12000:] if raw else "(empty)")
         + "</pre>"
@@ -2265,6 +2286,27 @@ def run_server(*, host: str = "127.0.0.1", port: int = 5678) -> None:
   try:
     cfg = _read_config()
     has_secrets = isinstance(cfg.get("secrets", None), dict) and bool(cfg.get("secrets"))
+    has_settings = isinstance(cfg.get("settings", None), dict) and bool(cfg.get("settings"))
+
+    if LEGACY_CONFIG_PATH.exists() and (not has_secrets or not has_settings):
+      # 0) Migrate from ~/.claude/.omc/justsell/config.json -> ~/.claude/.js/justsell/config.json
+      legacy_cfg = _read_json(LEGACY_CONFIG_PATH, {})
+      if isinstance(legacy_cfg, dict):
+        legacy_set = legacy_cfg.get("settings", {})
+        legacy_sec = legacy_cfg.get("secrets", {})
+        wrote = False
+        if isinstance(legacy_set, dict) and legacy_set and not has_settings:
+          cfg["settings"] = legacy_set
+          has_settings = True
+          wrote = True
+        if isinstance(legacy_sec, dict) and legacy_sec and not has_secrets:
+          cfg["secrets"] = legacy_sec
+          has_secrets = True
+          wrote = True
+        if wrote:
+          cfg["updated_at"] = _now_iso()
+          _write_config(cfg)
+          _append_log(f"MIGRATE legacy omc config -> {CONFIG_PATH} (from {LEGACY_CONFIG_PATH})")
 
     if not has_secrets:
       # 1) Migrate from old config.json (when we stored under ~/.ccs/justsell/config.json)
@@ -2284,7 +2326,7 @@ def run_server(*, host: str = "127.0.0.1", port: int = 5678) -> None:
 
     if not has_secrets:
       # 2) Migrate from old secrets.json locations
-      for src in [HOME_JST_SECRETS_PATH, REPO_JST_SECRETS_PATH, LEGACY_SECRETS_PATH]:
+      for src in [LEGACY_SECRETS_FILE_PATH, HOME_JST_SECRETS_PATH, REPO_JST_SECRETS_PATH, LEGACY_SECRETS_PATH]:
         if not src.exists():
           continue
         legacy = _read_json(src, {})

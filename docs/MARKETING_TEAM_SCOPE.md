@@ -13,9 +13,9 @@
 - 계약/법무/정책 확정 안내(담당자/팀으로 에스컬레이션)
 
 ## 데이터 원칙
-- 기본: 로컬 파일 저장(프로젝트 폴더, `~/.claude/.omc/justsell/console/`)
+- 기본: 로컬 파일 저장(프로젝트 폴더, `~/.claude/.js/justsell/console/`)
 - 토큰/시크릿: 로컬에만 저장(로그에는 마스킹)
 - 실시간 인박스(웹훅)는 공개 URL이 필요하므로, 로컬만 고집하면 폴링 기반으로 운영
 
 현재 콘솔 저장소 기본값:
-- `~/.claude/.omc/justsell/console/`
+- `~/.claude/.js/justsell/console/`

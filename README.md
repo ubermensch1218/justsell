@@ -3,8 +3,8 @@
 OMC(oh-my-claudecode) 스타일의 **마케팅 자동화 플러그인**입니다.
 
 로컬-first로 운영합니다:
-- 로그/잡/채팅: `~/.claude/.omc/justsell/console/`
-- 설정/토큰: `~/.claude/.omc/justsell/config.json`
+- 로그/잡/채팅: `~/.claude/.js/justsell/console/`
+- 설정/토큰: `~/.claude/.js/justsell/config.json`
 
 ## 구조 (요약)
 - `projects/`: 프로젝트별 영업/브랜드/채널별 초안과 산출물
@@ -36,6 +36,18 @@ Step 3) Run console
 ```
 
 Config 구조: `docs/CONFIG.md`
+카드뉴스 템플릿/가변 구역(자동 생성 영역): `docs/CARDNEWS_AUTOMATION.md`
+
+## (Optional) Terminal CLI (ccs config 느낌)
+레포에서 직접 실행:
+```bash
+./bin/js config
+```
+
+설치 스크립트를 썼다면(로컬 전용 shim):
+```bash
+~/.claude/.js/bin/js config
+```
 
 1) 새 프로젝트 만들기
 ```bash
@@ -63,6 +75,6 @@ python3 scripts/render_cardnews.py \
 python3 scripts/justsell_console.py
 ```
 - 주소: `http://127.0.0.1:5678/`
-- 저장 위치(기본): `~/.claude/.omc/justsell/`
-  - 설정/토큰: `~/.claude/.omc/justsell/config.json`
-  - 로그/이벤트: `~/.claude/.omc/justsell/console/`
+ - 저장 위치(기본): `~/.claude/.js/justsell/`
+  - 설정/토큰: `~/.claude/.js/justsell/config.json`
+  - 로그/이벤트: `~/.claude/.js/justsell/console/`

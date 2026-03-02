@@ -468,7 +468,15 @@ def _claude_dir() -> Path:
 
 
 def _read_config_settings() -> dict[str, Any]:
-  cfg_path = Path(os.environ.get("JUSTSELL_CONFIG_PATH", "")).expanduser() if os.environ.get("JUSTSELL_CONFIG_PATH") else (_claude_dir() / ".omc" / "justsell" / "config.json")
+  if os.environ.get("JUSTSELL_CONFIG_PATH"):
+    cfg_path = Path(os.environ.get("JUSTSELL_CONFIG_PATH", "")).expanduser()
+  else:
+    base = _claude_dir()
+    cfg_path = base / ".js" / "justsell" / "config.json"
+    if not cfg_path.exists():
+      legacy = base / ".omc" / "justsell" / "config.json"
+      if legacy.exists():
+        cfg_path = legacy
   try:
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
   except Exception:
@@ -554,7 +562,7 @@ def main() -> int:
     template_str = str(_settings_get(settings, ["cardnews", "template"], "") or "").strip()
 
   if template_str:
-    tpl_path = Path(template_str)
+    tpl_path = Path(template_str).expanduser()
     if not tpl_path.is_absolute():
       tpl_path = (_repo_root() / tpl_path).resolve()
     if tpl_path.exists():

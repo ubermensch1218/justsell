@@ -1,4 +1,4 @@
-# Config (`~/.claude/.omc/justsell/config.json`)
+# Config (`~/.claude/.js/justsell/config.json`)
 
 JustSell은 로컬-first로 설정과 OAuth 토큰을 저장합니다. (Claude Code가 `CLAUDE_CONFIG_DIR`를 쓰면 그 경로를 우선합니다.)
 
@@ -59,4 +59,3 @@ JustSell은 로컬-first로 설정과 OAuth 토큰을 저장합니다. (Claude C
 주의:
 - 로그에는 토큰이 저장되지 않도록 redaction 처리합니다.
 - 게시(publish)는 항상 dry-run 기본이며 `confirm=1`이 있어야 실행합니다.
-

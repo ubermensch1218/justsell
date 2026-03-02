@@ -8,9 +8,10 @@ CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 SKILLS_DIR="$CLAUDE_HOME/skills"
 COMMANDS_DIR="$CLAUDE_HOME/commands"
-OMC_DIR="$CLAUDE_HOME/.omc/justsell"
+JS_DIR="$CLAUDE_HOME/.js/justsell"
+JS_BIN_DIR="$CLAUDE_HOME/.js/bin"
 
-mkdir -p "$SKILLS_DIR" "$COMMANDS_DIR" "$OMC_DIR/console"
+mkdir -p "$SKILLS_DIR" "$COMMANDS_DIR" "$JS_DIR/console" "$JS_BIN_DIR"
 
 # Skills (symlink pack)
 if [[ ! -e "$SKILLS_DIR/justsell" ]]; then
@@ -24,7 +25,7 @@ for f in "$ROOT"/commands/*.md; do
 done
 
 # Config seed (do not overwrite)
-CONFIG_PATH="$OMC_DIR/config.json"
+CONFIG_PATH="$JS_DIR/config.json"
 if [[ ! -f "$CONFIG_PATH" ]]; then
   cat > "$CONFIG_PATH" <<'JSON'
 {
@@ -45,7 +46,12 @@ JSON
   chmod 600 "$CONFIG_PATH" || true
 fi
 
+# Optional local CLI shim (does not touch global PATH)
+cp -f "$ROOT/bin/js" "$JS_BIN_DIR/js"
+chmod +x "$JS_BIN_DIR/js" || true
+
 echo "Installed:"
 echo "- Skills:   $SKILLS_DIR/justsell -> $ROOT/skills"
 echo "- Commands: $COMMANDS_DIR/justsell-*.md"
-echo "- Storage:  $OMC_DIR"
+echo "- Storage:  $JS_DIR"
+echo "- CLI:      $JS_BIN_DIR/js (add to PATH if you want: export PATH=\"$JS_BIN_DIR:$PATH\")"

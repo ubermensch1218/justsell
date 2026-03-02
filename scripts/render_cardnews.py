@@ -12,6 +12,10 @@ from PIL import Image, ImageDraw, ImageFont
 from PIL import ImageFilter
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ASSETS_FONTS_DIR = REPO_ROOT / "assets" / "fonts"
+
+
 def _env(name: str) -> str:
   return os.environ.get(name, "").strip()
 
@@ -94,14 +98,21 @@ def _resolve_font_path(spec_font_path: str | None) -> Path | None:
   )
 
   for c in candidates:
-    p = Path(c)
+    p = Path(c).expanduser()
     if p.exists():
       return p
+    if not p.is_absolute():
+      rp = (REPO_ROOT / p).expanduser()
+      if rp.exists():
+        return rp
   return None
 
 
 def _norm_font_query(s: str) -> str:
-  return re.sub(r"[^a-z0-9]+", "", s.lower())
+  q = re.sub(r"[^a-z0-9]+", "", s.lower())
+  # Common alias: some users type "GDmarket" but the file/face is often "Gmarket...".
+  q = q.replace("gdmarket", "gmarket")
+  return q
 
 
 def _find_font_by_name(font_name: str) -> Path | None:
@@ -112,7 +123,7 @@ def _find_font_by_name(font_name: str) -> Path | None:
     return None
 
   search_dirs = [
-    Path("assets/fonts"),
+    ASSETS_FONTS_DIR,
     Path.home() / "Library/Fonts",
     Path("/Library/Fonts"),
     Path("/System/Library/Fonts"),
@@ -198,7 +209,7 @@ def _load_font(
     # Default bitmap font can't render Korean and will show tofu boxes.
     raise RuntimeError(
       "No Korean-capable font found. Set JUSTSELL_FONT_PATH or set font.path in the spec, "
-      "or place a .ttf/.ttc in assets/fonts/ (e.g. Pretendard/NotoSansKR)."
+      f"or place a .ttf/.ttc in {ASSETS_FONTS_DIR} (e.g. Pretendard/NotoSansKR)."
     )
   if index is None:
     return ImageFont.truetype(str(path), size=size)
@@ -496,6 +507,7 @@ def _draw_pills(
 
 
 def render_cardnews(spec_path: Path, out_dir: Path) -> list[Path]:
+  spec_path = spec_path.expanduser().resolve()
   spec = _load_spec(spec_path)
 
   canvas = spec.get("canvas", {})
@@ -557,9 +569,9 @@ def render_cardnews(spec_path: Path, out_dir: Path) -> list[Path]:
   badge_gap = 30
   accent_bar_width = 10
   accent_bar_gap = 24
-  slide_number_position = "top_right"
-  slide_number_pad = 1
-  slide_number_sep = "/"
+  slide_number_position = "bottom_left"
+  slide_number_pad = 2
+  slide_number_sep = " / "
   slide_number_margin_x = 0
   slide_number_margin_y = 0
   slide_number_color_override = ""
@@ -926,8 +938,9 @@ def render_cardnews(spec_path: Path, out_dir: Path) -> list[Path]:
       rule_w = min(title_rule_width, content_max_width)
       rule_h = title_rule_height
       rule_y = y - line_spacing - rule_h  # under title block
-      draw.rounded_rectangle((title_x, rule_y, title_x + rule_w, rule_y + rule_h), radius=rule_h // 2, fill=rule_color)
-      y += title_rule_gap
+      if rule_w > 0 and rule_h > 0:
+        draw.rounded_rectangle((title_x, rule_y, title_x + rule_w, rule_y + rule_h), radius=max(0, rule_h // 2), fill=rule_color)
+        y += title_rule_gap
 
     # Body
     if not use_kinds:

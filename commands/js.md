@@ -7,7 +7,7 @@ $ARGUMENTS
 You are operating the `justsell` plugin.
 
 Non-negotiable rules:
-- Local-first: store all state under `~/.claude/.omc/justsell/` (respect `CLAUDE_CONFIG_DIR`).
+- Local-first: store all state under `~/.claude/.js/justsell/` (respect `CLAUDE_CONFIG_DIR`).
 - Explicit publishing: default to dry-run unless the user explicitly confirms.
 - No hardcoded URLs: use env vars or `config.json`.
 - No emojis.
@@ -15,17 +15,24 @@ Non-negotiable rules:
 Interpret `$ARGUMENTS` as a subcommand:
 
 1) `init`
-- Goal: configure defaults (template, key colors, fonts) and OAuth app IDs/secrets.
+- Goal: wizard-like local setup (OMC-feel) that writes config under `~/.claude/.js/justsell/` and then completes OAuth in the console.
 - Action:
-  - Start the console and guide the user to `http://127.0.0.1:5678/connect`.
-  - Use the Setup form to save:
-    - Cardnews template + key colors + fonts
-    - Threads/Meta OAuth app settings
-    - (optional) `public_base_url` for Instagram publishing
-  - Then perform OAuth connects:
-    - Threads: click "Connect Threads (OAuth)"
-    - Instagram: click "Connect Instagram (OAuth)"
-    - Instagram account select: click "Discover accounts" then "Select" one `ig_user_id`.
+  1) Run the setup wizard (writes `config.json`):
+  ```bash
+  python3 scripts/justsell_setup.py --wizard
+  ```
+  - If `config.json` already exists, the wizard asks: update / reset / cancel.
+  - Uses `CLAUDE_CONFIG_DIR` (or `~/.claude`) automatically; never hardcode URLs.
+  - If the wizard cannot run (no interactive terminal), start the console and use `/connect` Setup form instead.
+  2) Start the console:
+  ```bash
+  python3 scripts/justsell_console.py
+  ```
+  3) Open `http://127.0.0.1:5678/connect` and complete OAuth:
+  - Threads: click "Connect Threads (OAuth)"
+  - Instagram: click "Connect Instagram (OAuth)"
+  - Instagram account select: click "Discover accounts" then "Select" one `ig_user_id`
+  - Optional: adjust template/colors/fonts in the Setup section if needed later
 
 2) `console`
 - Start JustSellConsole at `http://127.0.0.1:5678/`:
