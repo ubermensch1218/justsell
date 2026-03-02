@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from apps.justsell_console.server import JUSTSELL_HOME, run_server  # noqa: E402
+from apps.justsell_console.server import CONFIG_PATH, JUSTSELL_HOME, PROJECTS_DIR, run_server  # noqa: E402
 
 
 def _env(name: str, default: str = "") -> str:
@@ -44,6 +44,99 @@ def _open_url(url: str, *, no_open: bool) -> None:
 def _run_wizard() -> int:
   cmd = ["python3", str(REPO_ROOT / "scripts" / "justsell_setup.py"), "--wizard"]
   return subprocess.call(cmd)
+
+
+def _read_json(path: Path, default: dict) -> dict:
+  try:
+    import json
+
+    raw = path.read_text(encoding="utf-8")
+    obj = json.loads(raw) if raw else default
+    return obj if isinstance(obj, dict) else default
+  except Exception:
+    return default
+
+
+def _status() -> dict:
+  cfg = _read_json(CONFIG_PATH, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
+  settings = cfg.get("settings", {})
+  secrets = cfg.get("secrets", {})
+  if not isinstance(settings, dict):
+    settings = {}
+  if not isinstance(secrets, dict):
+    secrets = {}
+
+  cardnews = settings.get("cardnews", {})
+  cardnews_ready = isinstance(cardnews, dict) and bool(
+    str(cardnews.get("template", "")).strip() or cardnews.get("theme") or cardnews.get("fonts")
+  )
+  threads = secrets.get("threads", {})
+  ig = secrets.get("instagram", {})
+  threads_connected = isinstance(threads, dict) and bool(str(threads.get("access_token", "")).strip())
+  ig_connected = isinstance(ig, dict) and bool(str(ig.get("access_token", "")).strip())
+  ig_user_selected = isinstance(ig, dict) and bool(str(ig.get("ig_user_id", "")).strip())
+  public_base = str(settings.get("public_base_url", "")).strip() or _env("JUSTSELL_PUBLIC_BASE_URL", "")
+  public_base_ready = bool(str(public_base).strip())
+
+  projects = []
+  try:
+    for p in sorted(PROJECTS_DIR.iterdir()):
+      if p.is_dir() and p.name != "_template":
+        projects.append(p.name)
+  except Exception:
+    projects = []
+
+  next_hint = ""
+  if not cardnews_ready:
+    next_hint = "Open /connect and set template, key colors, and fonts."
+  elif not threads_connected or not ig_connected:
+    next_hint = "Open /connect and complete OAuth connect."
+  elif ig_connected and not ig_user_selected:
+    next_hint = "Open /connect and Discover accounts, then Select one ig_user_id."
+  elif not projects:
+    next_hint = "Open /connect and create a project slug."
+  else:
+    next_hint = "Go to / and Generate + Render. Publishing remains dry-run by default."
+
+  return {
+    "storage": str(JUSTSELL_HOME),
+    "config_path": str(CONFIG_PATH),
+    "projects_dir": str(PROJECTS_DIR),
+    "cardnews_ready": cardnews_ready,
+    "threads_connected": threads_connected,
+    "ig_connected": ig_connected,
+    "ig_user_selected": ig_user_selected,
+    "public_base_ready": public_base_ready,
+    "projects": projects[:20],
+    "next_hint": next_hint,
+  }
+
+
+def _mark(ok: bool) -> str:
+  return "[OK]" if ok else "[  ]"
+
+
+def cmd_status(_: argparse.Namespace) -> int:
+  s = _status()
+  print("JustSell Status")
+  print("")
+  print(f"[i] Storage: {s['storage']}")
+  print(f"[i] Config:  {s['config_path']}")
+  print(f"[i] Projects:{s['projects_dir']}")
+  print("")
+  print(f"{_mark(bool(s['cardnews_ready']))} Cardnews defaults")
+  print(f"{_mark(bool(s['threads_connected']))} Threads OAuth")
+  print(f"{_mark(bool(s['ig_connected']))} Instagram OAuth")
+  print(f"{_mark(bool(s['ig_user_selected']))} IG account select")
+  print(f"{_mark(bool(s['public_base_ready']))} Public base URL")
+  print("")
+  if s.get("projects"):
+    print("[i] Projects: " + ", ".join([str(x) for x in s["projects"]]))
+  else:
+    print("[i] Projects: (none)")
+  print("")
+  print("[i] Next: " + str(s.get("next_hint", "")).strip())
+  return 0
 
 
 def cmd_config(args: argparse.Namespace) -> int:
@@ -94,6 +187,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("[i] Step 1/2: Setup wizard (skipped - no interactive TTY)")
     print("[i] Use the /connect Setup section in the dashboard instead.")
   print("")
+  try:
+    cmd_status(args)
+    print("")
+  except Exception:
+    pass
   print("[i] Step 2/2: Config dashboard")
   return cmd_config(args)
 
@@ -137,6 +235,9 @@ def main() -> int:
   sp = sub.add_parser("init", help="Run wizard then open config dashboard")
   add_common(sp)
   sp.set_defaults(func=cmd_init)
+
+  sp = sub.add_parser("status", help="Show local setup status")
+  sp.set_defaults(func=cmd_status)
 
   sp = sub.add_parser("version", help="Print plugin version")
   sp.set_defaults(func=cmd_version)
