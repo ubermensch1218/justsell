@@ -1,0 +1,31 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "justsell-marketplace",
+  "description": "Local-first marketing automation pack (Threads + Instagram cardnews) for Claude Code.",
+  "owner": {
+    "name": "JustSell",
+    "email": "noreply@example.com"
+  },
+  "plugins": [
+    {
+      "name": "justsell",
+      "description": "Local-first marketing automation pack (Threads + Instagram cardnews) with JustSellConsole preview/publish flow and per-project sales source-of-truth.",
+      "version": "0.1.0",
+      "author": {
+        "name": "JustSell"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/ubermensch1218/justsell",
+      "tags": [
+        "marketing",
+        "local-first",
+        "threads",
+        "instagram",
+        "automation",
+        "cardnews"
+      ]
+    }
+  ],
+  "version": "0.1.0"
+}
