@@ -26,12 +26,12 @@ Step 1) Install (OMC 방식)
 
 Step 2) Setup (다이얼로그 흐름)
 ```bash
-/justsell-setup
+/js init
 ```
 
 Step 3) Run console
 ```bash
-/console-start
+/js console
 ```
 
 1) 새 프로젝트 만들기
