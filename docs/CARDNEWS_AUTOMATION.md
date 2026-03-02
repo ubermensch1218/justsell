@@ -14,7 +14,7 @@
 - `~/.claude/.js/templates/instagram/`
 - 확장자: `.yaml`, `.yml`, `.json`
 
-콘솔 `/connect`의 Template 드롭다운과 `/js init` 위저드에서 자동으로 목록에 뜹니다.
+콘솔 `/connect`의 Template 드롭다운과 `/justsell:js init` 위저드에서 자동으로 목록에 뜹니다.
 
 여기에 들어가는 것(고정):
 - `canvas`: 사이즈(예: 1080x1080)

@@ -7,7 +7,7 @@ JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 
    - `/plugin marketplace add https://github.com/ubermensch1218/justsell`
    - `/plugin install justsell`
 2) Init
-   - `/js init` → `/connect`에서 Setup 저장
+   - `/justsell:js init` → `/connect`에서 Setup 저장
      - 카드뉴스 템플릿, 키컬러, 폰트
      - Threads/Meta OAuth app 설정
      - (선택) public_base_url
@@ -21,7 +21,7 @@ JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 
    - 콘솔 `/`에서 프로젝트 선택 → Generate + Render
 
 ## Flow B: 기존 운영 사용자(이미 계정/토큰 있음)
-1) Install/Update 후 `/js console`
+1) Install/Update 후 `/justsell:js console`
 2) `/connect`에서 Setup만 보강
    - 카드뉴스 템플릿/키컬러/폰트(기존에 없던 부분)
    - public_base_url(IG publish 필요 시)

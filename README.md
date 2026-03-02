@@ -7,9 +7,9 @@ OMC(oh-my-claudecode) 스타일의 **마케팅 자동화 플러그인**입니다
 - 설정/토큰: `~/.claude/.js/config.json`
 
 ## 구조 (요약)
-- `projects/`: 프로젝트별 영업/브랜드/채널별 초안과 산출물
-  - `projects/<project>/SALES_INFO.md`: 영업/세일즈 메시지의 기준 문서
-  - `projects/<project>/CONVERSATION_POLICY.md`: AI 상담/대화 권한(자동/초안/금지) 정책
+- `~/.claude/.js/projects/`: 프로젝트별 영업/브랜드/채널별 초안과 산출물(로컬-first, 플러그인 업데이트로 삭제되지 않음)
+  - `~/.claude/.js/projects/<project>/SALES_INFO.md`: 영업/세일즈 메시지의 기준 문서
+  - `~/.claude/.js/projects/<project>/CONVERSATION_POLICY.md`: AI 상담/대화 권한(자동/초안/금지) 정책
 - `channels/`: 채널 공통 가이드 + 템플릿(트위터/인스타/쓰레드/링크드인)
 - `prompts/`: LLM에 넣는 프롬프트 조각(채널별/작업별)
 - `templates/`: 브리프, 카피, 카드뉴스 스펙 템플릿
@@ -27,12 +27,12 @@ Step 1) Install (OMC 방식)
 
 Step 2) Setup (다이얼로그 흐름)
 ```bash
-/js init
+/justsell:js init
 ```
 
 Step 3) Run console
 ```bash
-/js console
+/justsell:js console
 ```
 
 Config 구조: `docs/CONFIG.md`
@@ -50,20 +50,25 @@ Config 구조: `docs/CONFIG.md`
 ```
 
 1) 새 프로젝트 만들기
+- 콘솔에서 생성(권장): `http://127.0.0.1:5678/connect` → Project → Create
+- 또는 직접 만들기:
 ```bash
-cp -R projects/_template projects/<project-slug>
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CLAUDE_DIR/.js/projects"
+cp -R projects/_template "$CLAUDE_DIR/.js/projects/<project-slug>"
 ```
 
 2) 프로젝트 정보 채우기
-- `projects/<project-slug>/SALES_INFO.md`
-- `projects/<project-slug>/brand.md`
-- `projects/<project-slug>/product.md`
+- `~/.claude/.js/projects/<project-slug>/SALES_INFO.md`
+- `~/.claude/.js/projects/<project-slug>/brand.md`
+- `~/.claude/.js/projects/<project-slug>/product.md`
 
 3) Instagram 카드뉴스 이미지 생성(로컬)
 ```bash
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 python3 scripts/render_cardnews.py \
-  --spec projects/<project-slug>/channels/instagram/cardnews/01.yaml \
-  --out  projects/<project-slug>/channels/instagram/exports
+  --spec "$CLAUDE_DIR/.js/projects/<project-slug>/channels/instagram/cardnews/01.yaml" \
+  --out  "$CLAUDE_DIR/.js/projects/<project-slug>/channels/instagram/exports"
 ```
 
 폰트가 한글을 못 그리면 `assets/fonts/`에 `.ttf`를 넣고 스펙에서 `font.path`로 지정하거나,
@@ -72,7 +77,7 @@ python3 scripts/render_cardnews.py \
 ## 로컬 콘솔 (JustSellConsole)
 - 실행:
 ```bash
-python3 scripts/justsell_console.py
+/justsell:js console
 ```
 - 주소: `http://127.0.0.1:5678/`
  - 저장 위치(기본): `~/.claude/.js/`

@@ -38,6 +38,13 @@ JUSTSELL_HOME.mkdir(parents=True, exist_ok=True)
 
 CONFIG_PATH = Path(_env("JUSTSELL_CONFIG_PATH", str(JUSTSELL_HOME / "config.json"))).expanduser()
 
+# Projects live outside the plugin install dir so updates do not wipe them.
+# Default: ~/.claude/.js/projects (respects CLAUDE_CONFIG_DIR and JUSTSELL_HOME).
+PROJECTS_DIR = Path(_env("JUSTSELL_PROJECTS_DIR", str(JUSTSELL_HOME / "projects"))).expanduser()
+PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+PROJECTS_DIR_NAME = PROJECTS_DIR.name
+PATH_ROOT = PROJECTS_DIR.parent
+
 STATE_DIR = JUSTSELL_HOME / "console"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 STATE_PATH = STATE_DIR / "state.json"
@@ -315,7 +322,7 @@ def _safe_project_slug(value: str) -> str:
 
 
 def _list_projects() -> list[str]:
-  base = REPO_ROOT / "projects"
+  base = PROJECTS_DIR
   if not base.exists():
     return []
   out: list[str] = []
@@ -374,7 +381,7 @@ def _onboarding_status() -> dict:
   elif ig_connected and not ig_user_selected:
     next_hint = "Open /connect and Discover accounts, then Select one ig_user_id."
   elif not has_project:
-    next_hint = "Create a project slug from /connect (Project section) or copy projects/_template."
+    next_hint = f"Open /connect and create a project under {PROJECTS_DIR_NAME}/<slug>."
   else:
     next_hint = "Go to / and Generate + Render. Publishing remains dry-run by default."
 
@@ -417,14 +424,14 @@ def _urlencode(s: str) -> str:
 
 
 def _safe_rel_path(value: str) -> Path:
-  # Only allow paths under repo root to avoid traversal.
+  # Only allow paths under PATH_ROOT to avoid traversal.
   p = Path(unquote(value)).expanduser()
   if p.is_absolute():
-    rel = p.resolve().relative_to(REPO_ROOT)
+    rel = p.resolve().relative_to(PATH_ROOT)
     return rel
   rel = p
-  resolved = (REPO_ROOT / rel).resolve()
-  resolved.relative_to(REPO_ROOT)  # raises if outside
+  resolved = (PATH_ROOT / rel).resolve()
+  resolved.relative_to(PATH_ROOT)  # raises if outside
   return rel
 
 
@@ -433,21 +440,32 @@ def _safe_asset_path(value: str) -> Path:
   if rel.suffix.lower() != ".png":
     raise ValueError("Only .png assets are allowed")
   parts = rel.parts
-  # Allow only: projects/<project>/channels/instagram/exports/*.png
+  # Allow only: <projects_dir>/<project>/channels/instagram/exports/*.png
   if len(parts) < 6:
     raise ValueError("Invalid asset path")
-  if parts[0] != "projects":
+  if parts[0] != PROJECTS_DIR_NAME:
     raise ValueError("Invalid asset path")
   if not (len(parts) >= 6 and parts[2] == "channels" and parts[3] == "instagram" and parts[4] == "exports"):
     raise ValueError("Invalid asset path")
   return rel
 
 
+def _safe_project_file_path(value: str) -> Path:
+  # Allow only files under the projects directory (no config/secrets reads).
+  rel = _safe_rel_path(value)
+  parts = rel.parts
+  if len(parts) < 2:
+    raise ValueError("Invalid file path")
+  if parts[0] != PROJECTS_DIR_NAME:
+    raise ValueError("Invalid file path")
+  return rel
+
+
 def _load_project_policy(project_rel: Path) -> dict:
-  # Reads `projects/<project>/CONVERSATION_POLICY.md` and parses the first ```justsell-policy JSON block.
-  policy_path = (REPO_ROOT / project_rel / "CONVERSATION_POLICY.md").resolve()
+  # Reads `<projects_dir>/<project>/CONVERSATION_POLICY.md` and parses the first ```justsell-policy JSON block.
+  policy_path = (PATH_ROOT / project_rel / "CONVERSATION_POLICY.md").resolve()
   try:
-    policy_path.relative_to(REPO_ROOT)
+    policy_path.relative_to(PATH_ROOT)
   except Exception:
     return {"mode": "DRAFT_ONLY", "policy_version": 1, "team": "marketing"}
 
@@ -495,7 +513,7 @@ def _policy_snapshot_for_project(project_rel: Path) -> dict:
 
 def _list_specs() -> list[dict]:
   specs: list[dict] = []
-  projects_dir = REPO_ROOT / "projects"
+  projects_dir = PROJECTS_DIR
   if not projects_dir.exists():
     return specs
 
@@ -506,7 +524,7 @@ def _list_specs() -> list[dict]:
       mtime = spec.stat().st_mtime
     except Exception:
       mtime = 0
-    rel = spec.relative_to(REPO_ROOT)
+    rel = spec.relative_to(PATH_ROOT)
     specs.append(
       {
         "path": str(rel),
@@ -522,7 +540,7 @@ def _list_specs() -> list[dict]:
 
 def _exports_for_spec(spec_rel: Path) -> list[str]:
   try:
-    project_dir = REPO_ROOT / "projects" / spec_rel.parts[1]
+    project_dir = PROJECTS_DIR / spec_rel.parts[1]
   except Exception:
     return []
   exports_dir = project_dir / "channels" / "instagram" / "exports"
@@ -532,7 +550,7 @@ def _exports_for_spec(spec_rel: Path) -> list[str]:
   out = []
   for p in sorted(exports_dir.glob(f"{stem}-*.png")):
     try:
-      rel = p.relative_to(REPO_ROOT)
+      rel = p.relative_to(PATH_ROOT)
       out.append(str(rel))
     except Exception:
       continue
@@ -564,10 +582,11 @@ def _run(cmd: list[str], *, extra_env: dict[str, str] | None = None) -> dict:
 
 def _render_spec(spec_rel: Path) -> dict:
   project = spec_rel.parts[1] if len(spec_rel.parts) > 1 else ""
-  out_dir = Path("projects") / project / "channels" / "instagram" / "exports"
+  out_dir = PROJECTS_DIR / project / "channels" / "instagram" / "exports"
+  spec_abs = (PATH_ROOT / spec_rel).resolve()
   _append_event("render_start", {"spec": str(spec_rel), "out_dir": str(out_dir)})
   res = _run(
-    ["python3", "scripts/render_cardnews.py", "--spec", str(spec_rel), "--out", str(out_dir)],
+    ["python3", "scripts/render_cardnews.py", "--spec", str(spec_abs), "--out", str(out_dir)],
     extra_env=_cardnews_env_overrides(),
   )
   exports = _exports_for_spec(spec_rel)
@@ -580,6 +599,7 @@ def _generate_instagram(project_rel: Path, style: str, fmt: str) -> dict:
     "generate_instagram_start",
     {"project": str(project_rel), "style": style, "format": fmt, "policy": _policy_snapshot_for_project(project_rel)},
   )
+  project_abs = (PATH_ROOT / project_rel).resolve()
   template = _settings_get(["cardnews", "template"], "")
   template_str = str(template or "").strip()
   cmd = [
@@ -587,7 +607,7 @@ def _generate_instagram(project_rel: Path, style: str, fmt: str) -> dict:
     "scripts/generate_drafts.py",
     "instagram-cardnews",
     "--project",
-    str(project_rel),
+    str(project_abs),
     "--style",
     style,
     "--format",
@@ -611,13 +631,14 @@ def _generate_threads(project_rel: Path, style: str) -> dict:
     "generate_threads_start",
     {"project": str(project_rel), "style": style, "policy": _policy_snapshot_for_project(project_rel)},
   )
+  project_abs = (PATH_ROOT / project_rel).resolve()
   res = _run(
     [
       "python3",
       "scripts/generate_drafts.py",
       "threads",
       "--project",
-      str(project_rel),
+      str(project_abs),
       "--style",
       style,
     ]
@@ -1238,7 +1259,7 @@ def _spec_rows_html(specs: list[dict]) -> str:
   for s in specs:
     spec_path = s["path"]
     project = s.get("project", "")
-    project_path = f"projects/{project}" if project else ""
+    project_path = f"{PROJECTS_DIR_NAME}/{project}" if project else ""
     rows.append(
       f"""
       <div class="row">
@@ -1253,7 +1274,7 @@ def _spec_rows_html(specs: list[dict]) -> str:
       """.strip()
     )
   if not rows:
-    return '<div class="hint">No specs found under projects/*/channels/instagram/cardnews</div>'
+    return f'<div class="hint">No specs found under {PROJECTS_DIR_NAME}/*/channels/instagram/cardnews</div>'
   return "\n".join(rows)
 
 
@@ -1305,8 +1326,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
   for slug in projects[:30]:
     project_rows.append(
       "<div class='row'>"
-      f"<div class='meta'><div class='name'>{slug}</div><div class='sub'>projects/{slug}</div></div>"
-      f"<div style='display:flex;gap:10px;flex-wrap:wrap'><a href='/?project=projects/{slug}'><button>Open</button></a></div>"
+      f"<div class='meta'><div class='name'>{slug}</div><div class='sub'>{PROJECTS_DIR_NAME}/{slug}</div></div>"
+      f"<div style='display:flex;gap:10px;flex-wrap:wrap'><a href='/?project={PROJECTS_DIR_NAME}/{slug}'><button>Open</button></a></div>"
       "</div>"
     )
   project_list_html = "<div class='divider hint'>Projects</div>" + ("\n".join(project_rows) if project_rows else "<div class='hint'>(none)</div>")
@@ -1414,7 +1435,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
 
   <div class="card" style="padding:14px;margin-top:14px">
     <h2 style="padding:0;margin:0 0 8px 0">Project</h2>
-    <div class="hint">Create a new project from template: <code>projects/_template</code></div>
+    <div class="hint">Projects directory: <code>{str(PROJECTS_DIR)}</code></div>
+    <div class="hint">Template source (plugin): <code>{str(REPO_ROOT / "projects" / "_template")}</code></div>
     <form method="POST" action="/api/project/create" style="margin-top:12px">
       <div class="grid2">
         <div class="field">
@@ -1591,7 +1613,8 @@ def _execute_job(job: dict) -> dict:
     if not project:
       return {"ok": False, "error": "missing project"}
     project_rel = _safe_rel_path(project)
-    res = _run(["python3", "scripts/generate_drafts.py", "threads", "--project", str(project_rel), "--style", style])
+    project_abs = (PATH_ROOT / project_rel).resolve()
+    res = _run(["python3", "scripts/generate_drafts.py", "threads", "--project", str(project_abs), "--style", style])
     out_path = ""
     if res.get("stdout"):
       out_path = res["stdout"].strip().splitlines()[-1].strip()
@@ -1745,23 +1768,27 @@ class Handler(BaseHTTPRequestHandler):
     if path.startswith("/file/"):
       rel = path[len("/file/") :]
       try:
-        rel_path = _safe_rel_path(rel)
+        rel_path = _safe_project_file_path(rel)
       except Exception:
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid path"})
         return
-      fs = (REPO_ROOT / rel_path).resolve()
+      fs = (PATH_ROOT / rel_path).resolve()
       try:
-        fs.relative_to(REPO_ROOT)
+        fs.relative_to(PATH_ROOT)
       except Exception:
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid path"})
         return
       if not fs.exists() or not fs.is_file():
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         return
-      if fs.suffix.lower() == ".png":
+      suf = fs.suffix.lower()
+      if suf == ".png":
         self._send_bytes(200, "image/png", fs.read_bytes())
         return
-      self._send_json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "only .png supported"})
+      if suf in [".md", ".txt", ".json", ".yaml", ".yml"]:
+        self._send_bytes(200, "text/plain; charset=utf-8", fs.read_bytes())
+        return
+      self._send_json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "unsupported file type"})
       return
 
     if path.startswith("/asset/"):
@@ -1771,7 +1798,7 @@ class Handler(BaseHTTPRequestHandler):
       except Exception:
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid asset path"})
         return
-      fs = (REPO_ROOT / rel_path).resolve()
+      fs = (PATH_ROOT / rel_path).resolve()
       if not fs.exists() or not fs.is_file():
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         return
@@ -2249,19 +2276,22 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e)})
         return
       src = REPO_ROOT / "projects" / "_template"
-      dst = REPO_ROOT / "projects" / slug
+      dst = PROJECTS_DIR / slug
       if not src.exists() or not src.is_dir():
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": "missing projects/_template"})
         return
       if dst.exists():
-        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "project already exists", "project": f"projects/{slug}"})
+        self._send_json(
+          HTTPStatus.BAD_REQUEST,
+          {"error": "project already exists", "project": f"{PROJECTS_DIR_NAME}/{slug}"},
+        )
         return
       try:
         shutil.copytree(src, dst)
       except Exception as e:
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"copy failed: {e}"})
         return
-      _append_event("project_create", {"project": f"projects/{slug}"})
+      _append_event("project_create", {"project": f"{PROJECTS_DIR_NAME}/{slug}"})
       self.send_response(302)
       self.send_header("Location", "/connect")
       self.end_headers()

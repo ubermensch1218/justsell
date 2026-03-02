@@ -29,7 +29,7 @@ python3 scripts/render_cardnews.py --spec projects/<project>/channels/instagram/
 
 ## Step 3) 콘솔에서 미리보기/게시(dry-run)
 ```bash
-./bin/js console
+/justsell:js console
 ```
 - Threads: Generate draft → 필요 시 수정 → Publish (confirm=1)
 - Instagram: Render 확인 → caption 편집 → Publish (confirm=1)

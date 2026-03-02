@@ -13,6 +13,22 @@ Rules:
 
 Commands (example):
 ```bash
-python3 scripts/generate_drafts.py instagram-cardnews --project projects/<project> --style bernays --format yaml
-python3 scripts/render_cardnews.py --spec projects/<project>/channels/instagram/cardnews/<spec>.yaml --out projects/<project>/channels/instagram/exports
+JS_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$JS_ROOT" ]; then
+  JS_ROOT="$(python3 - <<'PY'
+import glob, os
+claude=os.environ.get('CLAUDE_CONFIG_DIR','~/.claude')
+base=os.path.expanduser(os.path.join(claude,'plugins','cache'))
+cands=sorted(glob.glob(os.path.join(base,'*','justsell','*')))
+print(cands[-1] if cands else '')
+PY
+)"
+fi
+test -n "$JS_ROOT"
+
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+
+python3 "$JS_ROOT/scripts/generate_drafts.py" instagram-cardnews --project "$PROJECT" --style bernays --format yaml
+python3 "$JS_ROOT/scripts/render_cardnews.py" --spec "$PROJECT/channels/instagram/cardnews/<spec>.yaml" --out "$PROJECT/channels/instagram/exports"
 ```
