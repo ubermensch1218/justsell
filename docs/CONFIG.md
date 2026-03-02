@@ -18,6 +18,20 @@ JustSell은 로컬-first로 설정과 OAuth 토큰을 저장합니다. (Claude C
 - Instagram carousel publish에서 이미지 URL로 사용됩니다.
 - 로컬 콘솔을 ngrok/cloudflared로 공개했을 때 그 base URL을 넣습니다.
 
+## OAuth prerequisites (redirect URI)
+OAuth 연결 전에, 각 앱 콘솔에서 Redirect URI를 정확히 등록해야 합니다.
+
+### Threads
+- Redirect URI (default):
+  - `http://127.0.0.1:5678/oauth/threads/callback`
+- 이 값은 env `JUSTSELL_THREADS_REDIRECT_URI` 또는 `settings.threads_redirect_uri`로 override 할 수 있지만,
+  콘솔 기본값과 앱 콘솔 등록값이 반드시 1:1로 일치해야 합니다.
+
+### Instagram (Meta Graph)
+- Redirect URI (default):
+  - `http://127.0.0.1:5678/oauth/ig/callback`
+- Meta Developers 콘솔에서 "Valid OAuth Redirect URIs"에 등록해야 합니다.
+
 ### `settings.cardnews`
 ```json
 {

@@ -417,6 +417,20 @@ def _http_json(method: str, url: str, *, data: dict | None = None, headers: dict
     raise RuntimeError(f"Network error {url}: {e}") from e
 
 
+def _extract_error_payload(msg: str) -> dict | None:
+  # Best-effort: try to parse trailing JSON from RuntimeError strings.
+  s = str(msg or "")
+  start = s.find("{")
+  end = s.rfind("}")
+  if start < 0 or end < 0 or end <= start:
+    return None
+  try:
+    payload = json.loads(s[start : end + 1])
+    return payload if isinstance(payload, dict) else None
+  except Exception:
+    return None
+
+
 def _urlencode(s: str) -> str:
   from urllib.parse import quote
 
@@ -1854,7 +1868,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         return
       except Exception as e:
-        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e)})
+        hint = ""
+        payload = _extract_error_payload(str(e))
+        if isinstance(payload, dict):
+          ec = payload.get("error_code") or payload.get("code")
+          em = str(payload.get("error_message", "") or payload.get("message", "") or "")
+          if str(ec).strip() == "1349187" or "redirect" in em.lower() or "redirect_uri" in em.lower():
+            hint = "Redirect URI mismatch. In your Threads app settings, add the exact redirect URI: http://127.0.0.1:5678/oauth/threads/callback"
+        if not hint:
+          hint = "If this is an OAuth error, verify your app redirect URI matches the console callback URL."
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e), "hint": hint})
         return
 
     if path == "/oauth/ig/start":
@@ -1910,7 +1933,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         return
       except Exception as e:
-        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e)})
+        hint = "Verify Meta app settings include the exact redirect URI: http://127.0.0.1:5678/oauth/ig/callback"
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e), "hint": hint})
         return
 
     if path == "/api/exports":
