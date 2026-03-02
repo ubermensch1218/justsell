@@ -10,7 +10,7 @@
     {
       "name": "justsell",
       "description": "Local-first marketing automation pack (Threads + Instagram cardnews) with JustSellConsole preview/publish flow and per-project sales source-of-truth.",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "author": {
         "name": "JustSell"
       },
@@ -27,5 +27,5 @@
       ]
     }
   ],
-  "version": "0.1.4"
+  "version": "0.1.5"
 }

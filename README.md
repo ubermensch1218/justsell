@@ -30,6 +30,11 @@ Step 2) Setup (다이얼로그 흐름)
 /justsell:js init
 ```
 
+Step 2-1) (쉬운 모드) 한 단계씩 안내 받기
+```bash
+/justsell:onboard
+```
+
 Step 3) Run console
 ```bash
 /justsell:js console

@@ -79,3 +79,4 @@ python3 "$JS_ROOT/scripts/render_cardnews.py" --spec "$PROJECT/channels/instagra
 
 If `$ARGUMENTS` is empty or unknown:
 - Ask the user which one: `init`, `console`, or `cardnews` (and which project slug for cardnews).
+- If the user seems lost or wants step-by-step guidance, recommend `/justsell:onboard`.

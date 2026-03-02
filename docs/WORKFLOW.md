@@ -8,6 +8,7 @@ JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 
    - `/plugin install justsell`
 2) Init
    - `/justsell:js init` → `/connect`에서 Setup 저장
+   - 헷갈리면 `/justsell:onboard`로 한 단계씩 진행
      - 카드뉴스 템플릿, 키컬러, 폰트
      - Threads/Meta OAuth app 설정
      - (선택) public_base_url
