@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local outputs
+out/
+
+# Console local state (keep it in ~/.claude/.omc/justsell)
+.omx/
+.jst/
+
+# Local scratch projects
+projects/_smoke_*/
+
+# Local env
+.env
+.env.*
+

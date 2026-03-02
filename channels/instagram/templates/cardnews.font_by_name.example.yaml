@@ -1,0 +1,62 @@
+# Example: font selection by "name" (not file path)
+#
+# If the font is installed on your machine or present under `assets/fonts/`,
+# the renderer tries to resolve it by searching:
+# - assets/fonts/
+# - ~/Library/Fonts, /Library/Fonts, /System/Library/Fonts
+#
+# Recommended for team workflows:
+# - commit fonts into `assets/fonts/` (e.g. Pretendard)
+# - then you can use human-friendly names across specs
+canvas:
+  width: 1080
+  height: 1350
+
+theme:
+  background:
+    kind: solid
+    color: "#FFFFFF"
+  accent_primary: "#00E676"
+  accent_secondary: "#111111"
+  cover:
+    fill: "#00E676"
+    text: "#111111"
+    dim: "rgba(0,0,0,0.72)"
+  panel:
+    fill: "rgba(255,255,255,0.0)"
+    border: "rgba(255,255,255,0.0)"
+    radius: 0
+
+font:
+  # "Main title": GDmarket bold (if installed)
+  title_name: "GDmarket Bold"
+  # Body: Pretendard regular (installed or assets/fonts/Pretendard-Regular.ttf)
+  body_name: "Pretendard Regular"
+  footer_name: "Pretendard Regular"
+  # Optional: fail if the font name cannot be resolved (recommended for CI/teams)
+  # strict: true
+  title_size: 88
+  body_size: 44
+  footer_size: 28
+
+layout:
+  padding: 0
+  card_padding: 96
+  line_spacing: 14
+  bullet_prefix: ""
+  footer_align: right
+  slide_number:
+    enabled: true
+    position: bottom_left
+    pad: 2
+    sep: " / "
+    font_size: 26
+
+slides:
+  - kind: cover
+    slide_number_color: "#111111"
+    title: "폰트 이름만 주면\n자동으로 세팅"
+    body:
+      - "타이틀: GDmarket Bold"
+      - "본문: Pretendard Regular"
+    footer: "JustSell"

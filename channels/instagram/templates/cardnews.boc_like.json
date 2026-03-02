@@ -1,0 +1,161 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  },
+  "theme": {
+    "background": {
+      "kind": "solid",
+      "color": "#2B2B2B"
+    },
+    "accent_primary": "#00E676",
+    "accent_secondary": "#111111",
+    "panel": {
+      "fill": "#2B2B2B",
+      "border": "rgba(255,255,255,0.0)",
+      "radius": 0
+    },
+    "cover": {
+      "fill": "#00E676",
+      "text": "#111111",
+      "dim": "rgba(0,0,0,0.72)"
+    },
+    "badge": {
+      "fill": "rgba(17,17,17,0.92)",
+      "border": "rgba(255,255,255,0.0)",
+      "text": "#00E676",
+      "radius": 999,
+      "padding_x": 26,
+      "padding_y": 14,
+      "gap": 34
+    },
+    "accent_bar": {
+      "width": 10,
+      "gap": 24
+    },
+    "title_rule": {
+      "width": 160,
+      "height": 6,
+      "gap": 26
+    }
+  },
+  "brand": {
+    "name": "인쇄물 브랜딩",
+    "contact": ""
+  },
+  "font": {
+    "title_path": "assets/fonts/Pretendard-Bold.ttf",
+    "body_path": "assets/fonts/Pretendard-Regular.ttf",
+    "footer_path": "assets/fonts/Pretendard-Regular.ttf",
+    "title_size": 88,
+    "body_size": 44,
+    "subtitle_size": 34,
+    "footer_size": 28
+  },
+  "layout": {
+    "padding": 0,
+    "card_padding": 96,
+    "line_spacing": 14,
+    "bullet_prefix": "",
+    "footer_align": "right",
+    "slide_number": {
+      "enabled": true,
+      "position": "bottom_left",
+      "pad": 2,
+      "sep": " / ",
+      "font_size": 26
+    }
+  },
+  "slides": [
+    {
+      "kind": "cover",
+      "slide_number_color": "#111111",
+      "badge": {
+        "text": "브랜딩 인사이트북 제작자",
+        "fill": "rgba(17,17,17,0.92)",
+        "text_color": "#00E676"
+      },
+      "title": "명함 용지,\\n뭘 골라야 해?",
+      "body": [
+        "아무거나 선택하고",
+        "실패한 적 있나요?"
+      ],
+      "footer": "인쇄물 브랜딩"
+    },
+    {
+      "kind": "bullets",
+      "slide_number_color": "#9A9A9A",
+      "background": {
+        "kind": "solid",
+        "color": "#2B2B2B"
+      },
+      "badge": {
+        "text": "실수담",
+        "fill": "rgba(255,255,255,0.10)",
+        "text_color": "#FFFFFF",
+        "border": "rgba(255,255,255,0.0)"
+      },
+      "accent_bar": true,
+      "title": "명함,\\n예쁘기만 하면 안된다.\\n내 사업과 어울려야 한다.",
+      "body": [
+        "무광코팅? 아트지? 광택무?",
+        "생소한 종이 이름 때문에",
+        "아무 종이나 선택한 적",
+        "있으시죠?"
+      ],
+      "image": {
+        "path": "",
+        "rect": [
+          560,
+          560,
+          1010,
+          1180
+        ],
+        "radius": 40,
+        "shadow": true
+      },
+      "footer": "인쇄물 브랜딩"
+    },
+    {
+      "kind": "bullets",
+      "slide_number_color": "#666666",
+      "background": {
+        "kind": "solid",
+        "color": "#F7F7F7"
+      },
+      "panel_fill": "rgba(255,255,255,0.0)",
+      "title_color": "#111111",
+      "body_color": "#111111",
+      "dim_color": "#666666",
+      "badge": {
+        "text": "핵심 기준",
+        "fill": "rgba(17,17,17,0.06)",
+        "text_color": "#111111",
+        "border": "rgba(0,0,0,0.0)"
+      },
+      "accent_bar": true,
+      "title": "내 업종에 맞게 골라라",
+      "body": [
+        "종이와 디자인은 취향이 아니라",
+        "업종과 용도로 고르는 것.",
+        "이 기준 하나면 실패가 줄어든다."
+      ],
+      "callout": {
+        "rect": [
+          96,
+          900,
+          984,
+          1125
+        ],
+        "radius": 28,
+        "fill": "#00E676",
+        "text_color": "#111111",
+        "font_size": 38,
+        "padding_x": 34,
+        "padding_y": 28,
+        "text": "TIP\\n어떤 상황에서 건네는 명함인지\\n먼저 떠올려 보세요."
+      },
+      "footer": "인쇄물 브랜딩"
+    }
+  ]
+}

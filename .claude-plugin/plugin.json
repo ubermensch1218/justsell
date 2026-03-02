@@ -1,0 +1,14 @@
+{
+  "name": "justsell",
+  "version": "0.1.0",
+  "description": "Local-first marketing automation pack (Threads + Instagram cardnews) with JustSellConsole preview/publish flow and per-project sales source-of-truth.",
+  "author": {
+    "name": "JustSell"
+  },
+  "keywords": [
+    "skills",
+    "marketing",
+    "automation"
+  ],
+  "skills": "./skills/"
+}

@@ -1,0 +1,100 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1080
+  },
+  "theme": {
+    "background": {
+      "kind": "solid",
+      "color": "#FFFFFF"
+    },
+    "accent_primary": "#FF6A2A",
+    "accent_secondary": "#111111",
+    "panel": {
+      "fill": "#141414",
+      "border": "rgba(255,255,255,0.0)",
+      "radius": 72
+    },
+    "cover": {
+      "fill": "#FF6A2A",
+      "text": "#111111",
+      "dim": "rgba(0,0,0,0.65)"
+    },
+    "pills": {
+      "fill": "rgba(255,255,255,0.08)",
+      "border": "rgba(255,255,255,0.12)",
+      "radius": 28,
+      "max_width_ratio": 0.92
+    },
+    "bullets": {
+      "gap": 18,
+      "indent": 30,
+      "dot_radius": 5
+    },
+    "cover_layout": {
+      "subtitle_gap": 120
+    },
+    "title_rule": {
+      "width": 160,
+      "height": 6,
+      "gap": 26
+    }
+  },
+  "brand": {
+    "name": "gpt...org",
+    "contact": ""
+  },
+  "font": {
+    "path": "",
+    "title_path": "assets/fonts/Pretendard-Bold.ttf",
+    "body_path": "assets/fonts/Pretendard-Regular.ttf",
+    "footer_path": "assets/fonts/Pretendard-Regular.ttf",
+    "title_size": 92,
+    "body_size": 44,
+    "subtitle_size": 34,
+    "footer_size": 26
+  },
+  "layout": {
+    "padding": 0,
+    "card_padding": 96,
+    "line_spacing": 14,
+    "bullet_prefix": "",
+    "show_slide_number": false,
+    "footer_align": "center"
+  },
+  "slides": [
+    {
+      "kind": "cover",
+      "footer_align": "left",
+      "title": "Claude Code로\n'고마워'\n받아보기",
+      "body": [
+        "가족과 동료에게 도움을 주고",
+        "감사를 받는 방법"
+      ],
+      "footer": "21기 고마워클로드 스터디 · 2026.03.16 - 04.13 · 매주 화요일 밤 9시"
+    },
+    {
+      "kind": "bullets",
+      "title": "Claude Code,\n어렵지 않아요",
+      "body": [
+        "코딩 없이 Claude Code 실전 활용",
+        "가족/동료의 실제 문제를 AI로 직접 해결",
+        "매주 과제 → 피드백 → 성장 사이클",
+        "4주 완성, 비개발자도 환영"
+      ],
+      "footer": "gpt...org"
+    },
+    {
+      "kind": "pills",
+      "title": "혹시 이런 생각,\n해보신 적 있나요?",
+      "body": [
+        "\"AI 쓰고 싶은데 어디서 시작해야 할지...\"",
+        "\"가족한테 도움이 되고 싶은데 방법을 모르겠어\"",
+        "\"비개발자도 Claude Code 쓸 수 있나요?\"",
+        "\"실전 활용 사례가 더 보고 싶어요\""
+      ],
+      "footer": "gpt...org"
+    }
+  ]
+}
+

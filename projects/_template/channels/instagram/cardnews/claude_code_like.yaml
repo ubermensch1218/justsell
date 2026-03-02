@@ -1,0 +1,86 @@
+# Copy and customize for a real project.
+# Renders best when you set JUSTSELL_FONT_PATH to a Korean-capable font.
+canvas:
+  width: 1080
+  height: 1080
+
+theme:
+  background:
+    kind: solid
+    color: "#FFFFFF"
+  accent_primary: "#FF6A2A"
+  accent_secondary: "#111111"
+  panel:
+    fill: "#141414"
+    border: "rgba(255,255,255,0.0)"
+    radius: 72
+  cover:
+    fill: "#FF6A2A"
+    text: "#111111"
+    dim: "rgba(0,0,0,0.65)"
+  pills:
+    fill: "rgba(255,255,255,0.08)"
+    border: "rgba(255,255,255,0.12)"
+    radius: 28
+    max_width_ratio: 0.92
+  bullets:
+    gap: 18
+    indent: 30
+    dot_radius: 5
+  cover_layout:
+    subtitle_gap: 120
+  title_rule:
+    width: 160
+    height: 6
+    gap: 26
+
+brand:
+  name: "{PROJECT_NAME}"
+  contact: "{CONTACT}"
+
+font:
+  path: ""
+  title_path: "assets/fonts/Pretendard-Bold.ttf"
+  body_path: "assets/fonts/Pretendard-Regular.ttf"
+  footer_path: "assets/fonts/Pretendard-Regular.ttf"
+  # title_index: 0
+  # body_index: 0
+  title_size: 92
+  body_size: 44
+  subtitle_size: 34
+  footer_size: 26
+
+layout:
+  padding: 0
+  card_padding: 96
+  line_spacing: 14
+  bullet_prefix: ""
+  show_slide_number: false
+  footer_align: center
+
+slides:
+  - kind: cover
+    footer_align: left
+    title: "{BIG_TITLE_LINE_1}\n{BIG_TITLE_LINE_2}\n{BIG_TITLE_LINE_3}"
+    body:
+      - "{SUBTITLE_1}"
+      - "{SUBTITLE_2}"
+    footer: "{PROGRAM_INFO}"
+
+  - kind: bullets
+    title: "{SLIDE_2_TITLE_LINE_1}\n{SLIDE_2_TITLE_LINE_2}"
+    body:
+      - "{BULLET_1}"
+      - "{BULLET_2}"
+      - "{BULLET_3}"
+      - "{BULLET_4}"
+    footer: "{FOOTER}"
+
+  - kind: pills
+    title: "{SLIDE_3_TITLE_LINE_1}\n{SLIDE_3_TITLE_LINE_2}"
+    body:
+      - "\"{PILL_1}\""
+      - "\"{PILL_2}\""
+      - "\"{PILL_3}\""
+      - "\"{PILL_4}\""
+    footer: "{FOOTER}"

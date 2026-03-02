@@ -1,0 +1,49 @@
+# Cardnews spec template (YAML)
+#
+# - Put a Korean-capable .ttf in `assets/fonts/` and set `font.path`,
+#   or set env var JUSTSELL_FONT_PATH.
+
+canvas:
+  width: 1080
+  height: 1350
+
+theme:
+  background:
+    kind: gradient
+    from: "#050505"
+    to: "#0B0F19"
+  accent_primary: "#FF3B30"
+  accent_secondary: "#5856D6"
+  card:
+    fill: "rgba(255,255,255,0.03)"
+    border: "rgba(255,255,255,0.08)"
+    radius: 40
+  text:
+    title: "#FFFFFF"
+    body: "#FFFFFF"
+    dim: "#A0A0A0"
+
+brand:
+  name: "{BRAND_NAME}"
+  contact: "{CONTACT}"
+
+font:
+  path: "" # e.g. assets/fonts/Pretendard-Regular.ttf
+  title_size: 84
+  body_size: 46
+  footer_size: 32
+
+layout:
+  padding: 88
+  card_padding: 72
+  line_spacing: 14
+  bullet_prefix: "" # keep empty for cardnews vibe
+  show_slide_number: false # true for internal review drafts
+
+slides:
+  - title: "{SLIDE_1_TITLE}"
+    body:
+      - "{LINE_1}"
+      - "{LINE_2}"
+      - "{LINE_3}"
+    footer: "{BRAND_OR_CTA}"

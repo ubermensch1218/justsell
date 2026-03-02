@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "id": "daily-instagram-cardnews-template",
+      "enabled": false,
+      "schedule": { "kind": "weekly", "days": ["MON", "TUE", "WED", "THU", "FRI"], "hour": 9, "minute": 0 },
+      "action": {
+        "kind": "generate_instagram_and_render",
+        "project": "projects/_template",
+        "style": "bernays",
+        "format": "json"
+      }
+    }
+  ]
+}
+
