@@ -186,7 +186,7 @@ def _apply_cardnews_updates(
 
 def _wizard(config_path: Path) -> dict[str, Any]:
   if not _is_tty():
-    raise SystemExit("Wizard requires a TTY (interactive terminal). Use flags instead.")
+    raise SystemExit(0)
 
   cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
   if not isinstance(cfg, dict):
@@ -389,6 +389,11 @@ def main() -> int:
   config_path = js_dir / "config.json"
 
   if args.wizard:
+    if not _is_tty():
+      print("Wizard requires a TTY (interactive terminal). Use flags instead.")
+      print(str(config_path))
+      return 0
+
     cfg = _wizard(config_path)
     if args.dry_run:
       print(str(config_path))

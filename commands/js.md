@@ -40,6 +40,7 @@ PY
   ```bash
   "$JS_ROOT/bin/js" init
   ```
+  - Note: Claude Code runs Bash without an interactive TTY, so the terminal wizard is skipped and you should use the `/connect` Setup section.
 
   2) In the dashboard, open `http://127.0.0.1:5678/connect` and complete OAuth:
   - Threads: click "Connect Threads (OAuth)"

@@ -20,6 +20,13 @@ def _env(name: str, default: str = "") -> str:
   return os.environ.get(name, default).strip()
 
 
+def _is_tty() -> bool:
+  try:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+  except Exception:
+    return False
+
+
 def _print_header(title: str) -> None:
   print(title)
   print("")
@@ -77,11 +84,15 @@ def cmd_console(args: argparse.Namespace) -> int:
 
 def cmd_init(args: argparse.Namespace) -> int:
   _print_header("JustSell Init")
-  print("[i] Step 1/2: Setup wizard (local-first)")
-  rc = _run_wizard()
-  if rc != 0:
-    print("")
-    print("[!] Wizard did not complete. You can still run config dashboard and use /connect Setup form.")
+  if _is_tty():
+    print("[i] Step 1/2: Setup wizard (local-first)")
+    rc = _run_wizard()
+    if rc != 0:
+      print("")
+      print("[!] Wizard did not complete. You can still run config dashboard and use /connect Setup form.")
+  else:
+    print("[i] Step 1/2: Setup wizard (skipped - no interactive TTY)")
+    print("[i] Use the /connect Setup section in the dashboard instead.")
   print("")
   print("[i] Step 2/2: Config dashboard")
   return cmd_config(args)
@@ -136,4 +147,3 @@ def main() -> int:
 
 if __name__ == "__main__":
   raise SystemExit(main())
-
