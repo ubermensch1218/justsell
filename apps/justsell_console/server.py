@@ -34,10 +34,6 @@ CLAUDE_HOME = Path(
   )
 ).expanduser()
 JS_HOME = Path(_env("JS_HOME", str(CLAUDE_HOME / ".js"))).expanduser()
-# Legacy support: older builds stored under ~/.claude/.omc/justsell/
-LEGACY_OMC_HOME = Path(_env("OMC_HOME", str(CLAUDE_HOME / ".omc"))).expanduser()
-LEGACY_JUSTSELL_HOME = LEGACY_OMC_HOME / "justsell"
-
 JUSTSELL_HOME = Path(_env("JUSTSELL_HOME", str(JS_HOME / "justsell"))).expanduser()
 JUSTSELL_HOME.mkdir(parents=True, exist_ok=True)
 
@@ -61,9 +57,6 @@ HOME_JST_CONSOLE_DIR = Path.home() / ".jst" / "console"
 HOME_JST_SECRETS_PATH = HOME_JST_CONSOLE_DIR / "secrets.json"
 
 HOME_CCS_JUSTSELL_CONFIG_PATH = Path.home() / ".ccs" / "justsell" / "config.json"
-
-LEGACY_CONFIG_PATH = LEGACY_JUSTSELL_HOME / "config.json"
-LEGACY_SECRETS_FILE_PATH = LEGACY_JUSTSELL_HOME / "secrets.json"
 
 
 def _now_iso() -> str:
@@ -2282,31 +2275,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def run_server(*, host: str = "127.0.0.1", port: int = 5678) -> None:
-  # One-time migration (best-effort): keep existing tokens when switching storage locations.
+  # One-time migration (best-effort): keep existing tokens from older storage locations.
   try:
     cfg = _read_config()
     has_secrets = isinstance(cfg.get("secrets", None), dict) and bool(cfg.get("secrets"))
     has_settings = isinstance(cfg.get("settings", None), dict) and bool(cfg.get("settings"))
-
-    if LEGACY_CONFIG_PATH.exists() and (not has_secrets or not has_settings):
-      # 0) Migrate from ~/.claude/.omc/justsell/config.json -> ~/.claude/.js/justsell/config.json
-      legacy_cfg = _read_json(LEGACY_CONFIG_PATH, {})
-      if isinstance(legacy_cfg, dict):
-        legacy_set = legacy_cfg.get("settings", {})
-        legacy_sec = legacy_cfg.get("secrets", {})
-        wrote = False
-        if isinstance(legacy_set, dict) and legacy_set and not has_settings:
-          cfg["settings"] = legacy_set
-          has_settings = True
-          wrote = True
-        if isinstance(legacy_sec, dict) and legacy_sec and not has_secrets:
-          cfg["secrets"] = legacy_sec
-          has_secrets = True
-          wrote = True
-        if wrote:
-          cfg["updated_at"] = _now_iso()
-          _write_config(cfg)
-          _append_log(f"MIGRATE legacy omc config -> {CONFIG_PATH} (from {LEGACY_CONFIG_PATH})")
 
     if not has_secrets:
       # 1) Migrate from old config.json (when we stored under ~/.ccs/justsell/config.json)
@@ -2326,7 +2299,7 @@ def run_server(*, host: str = "127.0.0.1", port: int = 5678) -> None:
 
     if not has_secrets:
       # 2) Migrate from old secrets.json locations
-      for src in [LEGACY_SECRETS_FILE_PATH, HOME_JST_SECRETS_PATH, REPO_JST_SECRETS_PATH, LEGACY_SECRETS_PATH]:
+      for src in [HOME_JST_SECRETS_PATH, REPO_JST_SECRETS_PATH, LEGACY_SECRETS_PATH]:
         if not src.exists():
           continue
         legacy = _read_json(src, {})

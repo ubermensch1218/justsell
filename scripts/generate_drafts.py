@@ -473,10 +473,6 @@ def _read_config_settings() -> dict[str, Any]:
   else:
     base = _claude_dir()
     cfg_path = base / ".js" / "justsell" / "config.json"
-    if not cfg_path.exists():
-      legacy = base / ".omc" / "justsell" / "config.json"
-      if legacy.exists():
-        cfg_path = legacy
   try:
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
   except Exception:

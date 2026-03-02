@@ -188,20 +188,7 @@ def _wizard(config_path: Path) -> dict[str, Any]:
   if not _is_tty():
     raise SystemExit("Wizard requires a TTY (interactive terminal). Use flags instead.")
 
-  # Backward-compatible: if the new path does not exist but legacy config exists, use it as a starting point.
-  if not config_path.exists():
-    # config_path = <claude_dir>/.js/justsell/config.json
-    # legacy     = <claude_dir>/.omc/justsell/config.json
-    legacy = config_path.parents[2] / ".omc" / "justsell" / "config.json"
-    try:
-      if legacy.exists():
-        cfg = _read_json(legacy, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
-      else:
-        cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
-    except Exception:
-      cfg = {"version": 1, "settings": {}, "secrets": {}, "meta": {}}
-  else:
-    cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
+  cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
   if not isinstance(cfg, dict):
     cfg = {"version": 1, "settings": {}, "secrets": {}, "meta": {}}
 
