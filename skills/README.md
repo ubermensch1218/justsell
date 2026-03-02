@@ -17,3 +17,11 @@ bash scripts/install_skills.sh
 - `skills/threads-compose/`: Threads 초안 생성(파일로 저장)
 - `skills/linkedin-compose/`: LinkedIn 초안 생성(파일로 저장)
 - `skills/instagram-cardnews/`: 영업Info.md 기반 카드뉴스 스펙 생성 + PNG 렌더
+- `skills/justsell-setup/`: 설정 위저드(`~/.claude/.js/config.json` 저장)
+- `skills/console-start/`: JustSellConsole 실행(로컬)
+
+## Add-ons (runbooks)
+- `skills/content-creator/`: 프레임워크 기반 카피 생성(Threads/LinkedIn/IG 캡션)
+- `skills/social-content/`: Threads + Instagram 카드뉴스 “운영 세트” 생성
+- `skills/competitive-ads-extractor/`: 경쟁사 광고 스와이프 파일 구축(스크래핑 없이)
+- `skills/frontend-design/`: 콘솔 UI/카드뉴스 템플릿 디자인 점검
