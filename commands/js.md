@@ -1,5 +1,5 @@
 ---
-description: JustSell entrypoint (OMC-style). Usage: /justsell:js init | /justsell:js console | /justsell:js cardnews
+description: JustSell entrypoint. Usage: /justsell:js init | /justsell:js console | /justsell:js cardnews | /justsell:js remotion
 ---
 
 $ARGUMENTS
@@ -15,10 +15,10 @@ Non-negotiable rules:
 Interpret `$ARGUMENTS` as a subcommand:
 
 Execution rule:
-- When the user asks for `init`, `console`, or `cardnews`, run the bash commands (do not only describe them).
+- When the user asks for `init`, `console`, `cardnews`, or `remotion`, run the bash commands (do not only describe them).
 
 1) `init`
-- Goal: wizard-like local setup (OMC-feel) that writes config under `~/.claude/.js/` and then completes OAuth in the console.
+- Goal: wizard-like local setup that writes config under `~/.claude/.js/` and then completes OAuth in the console.
 - Action:
   0) Resolve the plugin root (never assume the user's current repo contains `scripts/`):
   ```bash
@@ -77,6 +77,24 @@ python3 "$JS_ROOT/scripts/render_cardnews.py" --spec "$PROJECT/channels/instagra
   - Start console: `"$JS_ROOT/bin/js" console`
   - Pick any spec of the project, then in Publish panel click "Generate draft" with style `comeback`.
 
+6) `remotion`
+- Generate + render Remotion promo video for a project:
+```bash
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="$CLAUDE_DIR/.js/projects/<project>"
+"$JS_ROOT/bin/js" console
+python3 "$JS_ROOT/scripts/generate_remotion_spec.py" \
+  --project "$PROJECT" \
+  --style bernays \
+  --video-seconds 22 \
+  --video-format auto \
+  --channel-profile instagram-reel \
+  --device-profile mobile
+python3 "$JS_ROOT/scripts/render_remotion_video.py" \
+  --spec "$PROJECT/channels/instagram/remotion/<spec>.json" \
+  --out "$PROJECT/channels/instagram/videos"
+```
+
 If `$ARGUMENTS` is empty or unknown:
-- Ask the user which one: `init`, `console`, or `cardnews` (and which project slug for cardnews).
+- Ask the user which one: `init`, `console`, `cardnews`, or `remotion` (and which project slug for cardnews/remotion).
 - If the user seems lost or wants step-by-step guidance, recommend `/justsell:onboard`.

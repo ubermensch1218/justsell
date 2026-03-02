@@ -8,7 +8,7 @@ __pycache__/
 # Local outputs
 out/
 
-# Console local state (keep it in ~/.claude/.omc/justsell)
+# Console local state (keep it in ~/.claude/.js)
 .omx/
 .jst/
 

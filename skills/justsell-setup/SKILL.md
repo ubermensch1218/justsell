@@ -1,11 +1,11 @@
 ---
 name: justsell-setup
-description: Interactive setup wizard (OMC-style) for JustSell config under ~/.claude/.js
+description: Interactive setup wizard for JustSell config under ~/.claude/.js
 ---
 
 # JustSell Setup
 
-목표: OMC(`omc-setup`)처럼 “설치 후 한 번만” 설정하면 끝나는 형태로, 로컬 설정을 CLI 위저드로 저장합니다.
+목표: “설치 후 한 번만” 설정하면 끝나는 형태로, 로컬 설정을 CLI 위저드로 저장합니다.
 
 저장 위치(로컬-first):
 - 설정/토큰: `~/.claude/.js/config.json`
