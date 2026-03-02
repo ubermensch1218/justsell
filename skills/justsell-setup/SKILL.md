@@ -17,6 +17,28 @@ description: Interactive setup wizard (OMC-style) for JustSell config under ~/.c
 2) 전체 설정 다시 진행
 3) 취소
 
+체크(쉘):
+```bash
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
+CONFIG="$CLAUDE_DIR/.omc/justsell/config.json"
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+claude_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR") or os.environ.get("CLAUDE_HOME") or Path.home() / ".claude").expanduser()
+config = claude_dir / ".omc" / "justsell" / "config.json"
+if not config.exists():
+  print("NOT_CONFIGURED")
+  raise SystemExit(0)
+try:
+  data = json.loads(config.read_text(encoding="utf-8"))
+except Exception:
+  data = {}
+meta = (data.get("meta") or {}) if isinstance(data, dict) else {}
+print("CONFIGURED")
+print("setupCompletedAt=", meta.get("setupCompletedAt", ""))
+PY
+```
+
 ## Step 1. 사용자에게 질문(다이얼로그 스타일)
 다음 값을 물어봅니다(사용자가 모르면 빈 값 허용):
 - `public_base_url` (Instagram carousel publish에 필요할 수 있음)
@@ -45,4 +67,3 @@ python3 scripts/justsell_setup.py \
 python3 scripts/justsell_console.py
 ```
 그리고 `http://127.0.0.1:5678/connect`에서 OAuth 연결을 진행합니다.
-

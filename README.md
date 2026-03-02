@@ -27,7 +27,7 @@
 /plugin marketplace add <REPO_URL>
 /plugin install justsell
 ```
-  - 설치 후: `console-start`, `instagram-cardnews` 같은 스킬이 잡힘
+  - 설치 후: `/justsell-setup`, `/console-start`, `/instagram-cardnews` 같은 스킬이 잡힘
 
 - 로컬 설치(명령/스킬 심기):
 ```bash
