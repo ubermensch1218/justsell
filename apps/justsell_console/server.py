@@ -213,6 +213,33 @@ def _config_settings() -> dict:
   return s if isinstance(s, dict) else {}
 
 
+def _settings_get(path: list[str], default: object) -> object:
+  cur: object = _config_settings()
+  for k in path:
+    if not isinstance(cur, dict):
+      return default
+    cur = cur.get(k)
+  return cur if cur is not None else default
+
+
+def _settings_set(path: list[str], value: object) -> None:
+  cfg = _read_config()
+  s = cfg.get("settings", {})
+  if not isinstance(s, dict):
+    s = {}
+  cur: dict = s
+  for k in path[:-1]:
+    nxt = cur.get(k)
+    if not isinstance(nxt, dict):
+      nxt = {}
+      cur[k] = nxt
+    cur = nxt
+  cur[path[-1]] = value
+  cfg["settings"] = s
+  cfg["updated_at"] = _now_iso()
+  _write_config(cfg)
+
+
 def _env_or_config(env_name: str, *, key: str, default: str = "") -> str:
   # Env wins, then config.json `settings`, then default.
   v = _env(env_name, "")
@@ -221,6 +248,45 @@ def _env_or_config(env_name: str, *, key: str, default: str = "") -> str:
   s = _config_settings()
   cv = str(s.get(key, "")).strip()
   return cv or default
+
+
+def _cardnews_env_overrides() -> dict[str, str]:
+  # Map config `settings.cardnews.theme` into env vars consumed by render_cardnews.py.
+  theme = _settings_get(["cardnews", "theme"], {})
+  if not isinstance(theme, dict):
+    return {}
+
+  mapping = {
+    "accent_primary": "JUSTSELL_ACCENT_PRIMARY",
+    "accent_secondary": "JUSTSELL_ACCENT_SECONDARY",
+    "cover_fill": "JUSTSELL_COVER_FILL",
+    "panel_fill": "JUSTSELL_PANEL_FILL",
+    "bg_kind": "JUSTSELL_BG_KIND",
+    "bg_solid": "JUSTSELL_BG_SOLID",
+    "bg_from": "JUSTSELL_BG_FROM",
+    "bg_to": "JUSTSELL_BG_TO",
+    "font_path": "JUSTSELL_FONT_PATH",
+  }
+  out: dict[str, str] = {}
+  for k, env_k in mapping.items():
+    v2 = str(theme.get(k, "")).strip()
+    if v2:
+      out[env_k] = v2
+  return out
+
+
+def _available_cardnews_templates() -> list[str]:
+  tdir = REPO_ROOT / "channels" / "instagram" / "templates"
+  if not tdir.exists():
+    return []
+  items: list[str] = []
+  for p in sorted(tdir.glob("cardnews.*.yaml")):
+    try:
+      rel = p.relative_to(REPO_ROOT)
+      items.append(str(rel))
+    except Exception:
+      continue
+  return items
 
 
 def _http_json(method: str, url: str, *, data: dict | None = None, headers: dict | None = None) -> dict:
@@ -375,11 +441,14 @@ def _exports_for_spec(spec_rel: Path) -> list[str]:
   return out
 
 
-def _run(cmd: list[str]) -> dict:
+def _run(cmd: list[str], *, extra_env: dict[str, str] | None = None) -> dict:
   _append_log("RUN " + " ".join(cmd))
   started = time.time()
   try:
-    p = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True, check=False)
+    env = os.environ.copy()
+    if extra_env:
+      env.update({k: v for k, v in extra_env.items() if str(k).strip()})
+    p = subprocess.run(cmd, cwd=str(REPO_ROOT), capture_output=True, text=True, check=False, env=env)
     dur_ms = int((time.time() - started) * 1000)
     _append_log(f"EXIT {p.returncode} ({dur_ms}ms)")
     if p.stdout:
@@ -399,7 +468,10 @@ def _render_spec(spec_rel: Path) -> dict:
   project = spec_rel.parts[1] if len(spec_rel.parts) > 1 else ""
   out_dir = Path("projects") / project / "channels" / "instagram" / "exports"
   _append_event("render_start", {"spec": str(spec_rel), "out_dir": str(out_dir)})
-  res = _run(["python3", "scripts/render_cardnews.py", "--spec", str(spec_rel), "--out", str(out_dir)])
+  res = _run(
+    ["python3", "scripts/render_cardnews.py", "--spec", str(spec_rel), "--out", str(out_dir)],
+    extra_env=_cardnews_env_overrides(),
+  )
   exports = _exports_for_spec(spec_rel)
   _append_event("render_done", {"spec": str(spec_rel), "ok": bool(res.get("ok")), "exports": exports[:10]})
   return {"result": res, "exports": exports}
@@ -410,19 +482,22 @@ def _generate_instagram(project_rel: Path, style: str, fmt: str) -> dict:
     "generate_instagram_start",
     {"project": str(project_rel), "style": style, "format": fmt, "policy": _policy_snapshot_for_project(project_rel)},
   )
-  res = _run(
-    [
-      "python3",
-      "scripts/generate_drafts.py",
-      "instagram-cardnews",
-      "--project",
-      str(project_rel),
-      "--style",
-      style,
-      "--format",
-      fmt,
-    ]
-  )
+  template = _settings_get(["cardnews", "template"], "")
+  template_str = str(template or "").strip()
+  cmd = [
+    "python3",
+    "scripts/generate_drafts.py",
+    "instagram-cardnews",
+    "--project",
+    str(project_rel),
+    "--style",
+    style,
+    "--format",
+    fmt,
+  ]
+  if template_str:
+    cmd += ["--template", template_str]
+  res = _run(cmd)
   spec_path = ""
   if res.get("stdout"):
     spec_path = res["stdout"].strip().splitlines()[-1].strip()
@@ -739,6 +814,22 @@ def _html_page(title: str, body: str) -> bytes:
       background: rgba(255,106,42,0.18);
     }}
     button:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+    input[type="text"], input[type="password"], input[type="number"], select {{
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      outline: none;
+      font-weight: 600;
+    }}
+    label {{ display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; }}
+    .grid2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
+    .grid3 {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }}
+    .field {{ margin-top: 10px; }}
+    .divider {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.10); }}
     .preview {{
       padding: 14px;
       display: grid;
@@ -956,17 +1047,141 @@ def _spec_rows_html(specs: list[dict]) -> str:
   return "\n".join(rows)
 
 
-def _connect_page() -> bytes:
+def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
   threads_cfg = _threads_oauth_config()
   ig_cfg = _ig_oauth_config()
   t = _get_secret(["threads"]) or {}
   ig = _get_secret(["instagram"]) or {}
+  settings = _config_settings()
+  cardnews = _settings_get(["cardnews"], {})
+  if not isinstance(cardnews, dict):
+    cardnews = {}
+  card_theme = cardnews.get("theme", {})
+  if not isinstance(card_theme, dict):
+    card_theme = {}
+  card_fonts = cardnews.get("fonts", {})
+  if not isinstance(card_fonts, dict):
+    card_fonts = {}
+  selected_template = str(cardnews.get("template", "")).strip()
+  templates = _available_cardnews_templates()
+
+  def masked(key: str) -> str:
+    v = str(settings.get(key, "")).strip()
+    if not v:
+      return "(unset)"
+    if "secret" in key.lower():
+      return "(set)"
+    return v
+
+  def theme_val(k: str, fallback: str = "") -> str:
+    return str(card_theme.get(k, fallback)).strip()
+
+  def font_val(k: str, fallback: str = "") -> str:
+    return str(card_fonts.get(k, fallback)).strip()
 
   def fmt_exp(v: object) -> str:
     s = str(v or "").strip()
     return s if s else "(unknown)"
 
+  template_opts = "\n".join(
+    [
+      f"<option value='{p}' {'selected' if p == selected_template else ''}>{p}</option>"
+      for p in templates
+    ]
+  )
+
+  ig_accounts_html = ""
+  if qs and str((qs.get("ig_discover", [""])[0] or "")).strip() == "1":
+    token = str(ig.get("access_token", "")).strip()
+    if token:
+      try:
+        disc = _ig_discover_accounts(access_token=token)
+        pages = disc.get("data", [])
+        rows: list[str] = []
+        if isinstance(pages, list):
+          for p in pages[:40]:
+            if not isinstance(p, dict):
+              continue
+            page_name = str(p.get("name", "")).strip()
+            iba = p.get("instagram_business_account", {})
+            ig_id = str(iba.get("id", "")).strip() if isinstance(iba, dict) else ""
+            if not ig_id:
+              continue
+            rows.append(
+              "<div class='row'>"
+              f"<div class='meta'><div class='name'>{page_name or 'Instagram account'}</div>"
+              f"<div class='sub'>ig_user_id: {ig_id}</div></div>"
+              f"<div style='display:flex;gap:10px'><a href='/api/ig/set_user?ig_user_id={_urlencode(ig_id)}'><button class='primary'>Select</button></a></div>"
+              "</div>"
+            )
+        if rows:
+          ig_accounts_html = "<div class='divider hint'>Discovered Instagram accounts</div>" + "\n".join(rows)
+        else:
+          ig_accounts_html = "<div class='divider hint'>Discovered Instagram accounts</div><div class='hint'>(none found)</div>"
+      except Exception as e:
+        ig_accounts_html = "<div class='divider hint'>Discovered Instagram accounts</div>" + f"<div class='hint'>Error: {str(e)}</div>"
+    else:
+      ig_accounts_html = "<div class='divider hint'>Discovered Instagram accounts</div><div class='hint'>Connect Instagram first.</div>"
+
   body = f"""
+  <div class="card" style="padding:14px">
+    <h2 style="padding:0;margin:0 0 8px 0">Setup</h2>
+    <div class="hint">Config: <code>~/.claude/.omc/justsell/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
+    <form method="POST" action="/api/config/update" style="margin-top:12px">
+      <div class="grid2">
+        <div class="field">
+          <label>public_base_url (for Instagram publishing)</label>
+          <input type="text" name="public_base_url" value="{masked("public_base_url") if masked("public_base_url") != "(unset)" else ""}" placeholder="https://xxxxx.ngrok.app" />
+        </div>
+        <div class="field">
+          <label>Instagram cardnews template</label>
+          <select name="cardnews_template">
+            <option value="">(keep current)</option>
+            {template_opts}
+          </select>
+        </div>
+      </div>
+
+      <div class="divider hint">Key colors (saved to config; renderer also supports ENV overrides)</div>
+      <div class="grid3">
+        <div class="field"><label>accent_primary</label><input type="text" name="cardnews_accent_primary" value="{theme_val("accent_primary")}" placeholder="#00E676" /></div>
+        <div class="field"><label>accent_secondary</label><input type="text" name="cardnews_accent_secondary" value="{theme_val("accent_secondary")}" placeholder="#111111" /></div>
+        <div class="field"><label>cover_fill</label><input type="text" name="cardnews_cover_fill" value="{theme_val("cover_fill")}" placeholder="#00E676" /></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>panel_fill</label><input type="text" name="cardnews_panel_fill" value="{theme_val("panel_fill")}" placeholder="#141414" /></div>
+        <div class="field"><label>bg_kind</label><input type="text" name="cardnews_bg_kind" value="{theme_val("bg_kind")}" placeholder="solid|gradient" /></div>
+        <div class="field"><label>bg_solid</label><input type="text" name="cardnews_bg_solid" value="{theme_val("bg_solid")}" placeholder="#FFFFFF" /></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>bg_from</label><input type="text" name="cardnews_bg_from" value="{theme_val("bg_from")}" placeholder="#050505" /></div>
+        <div class="field"><label>bg_to</label><input type="text" name="cardnews_bg_to" value="{theme_val("bg_to")}" placeholder="#0B0F19" /></div>
+      </div>
+
+      <div class="divider hint">Fonts (name-based lookup; keep empty to use template)</div>
+      <div class="grid3">
+        <div class="field"><label>title_name</label><input type="text" name="cardnews_title_name" value="{font_val("title_name")}" placeholder="GDmarket Bold" /></div>
+        <div class="field"><label>body_name</label><input type="text" name="cardnews_body_name" value="{font_val("body_name")}" placeholder="Pretendard Regular" /></div>
+        <div class="field"><label>footer_name</label><input type="text" name="cardnews_footer_name" value="{font_val("footer_name")}" placeholder="Pretendard Regular" /></div>
+      </div>
+
+      <div class="divider hint">OAuth app settings (store locally; values are masked on this page)</div>
+      <div class="grid2">
+        <div class="field"><label>threads_app_id</label><input type="text" name="threads_app_id" value="{masked("threads_app_id") if masked("threads_app_id") != "(unset)" else ""}" /></div>
+        <div class="field"><label>threads_app_secret</label><input type="password" name="threads_app_secret" value="" placeholder="{masked("threads_app_secret")}" /></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>meta_app_id</label><input type="text" name="meta_app_id" value="{masked("meta_app_id") if masked("meta_app_id") != "(unset)" else ""}" /></div>
+        <div class="field"><label>meta_app_secret</label><input type="password" name="meta_app_secret" value="" placeholder="{masked("meta_app_secret")}" /></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" type="submit">Save</button>
+        <a class="hint" href="/api/config"><button type="button">View config (redacted)</button></a>
+      </div>
+    </form>
+  </div>
+
   <div class="card" style="padding:14px">
     <h2 style="padding:0;margin:0 0 8px 0">Threads</h2>
     <div class="hint">status: {"connected" if t.get("access_token") else "not connected"}</div>
@@ -991,8 +1206,9 @@ JUSTSELL_THREADS_SCOPES (default {threads_cfg.get("scope","")})
     <div class="hint">ig_user_id: {ig.get("ig_user_id","(unset)")}</div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
       <a href="/oauth/ig/start"><button class="primary">Connect Instagram (OAuth)</button></a>
-      <a href="/api/ig/discover"><button>Discover accounts</button></a>
+      <a href="/connect?ig_discover=1"><button>Discover accounts</button></a>
     </div>
+    {ig_accounts_html}
     <div class="hint" style="margin-top:10px">Publishing carousels requires a public URL. Set `JUSTSELL_PUBLIC_BASE_URL` to your tunnel (e.g. ngrok/cloudflared) pointing at this console.</div>
     <pre style="margin-top:12px">ENV required:
 JUSTSELL_META_APP_ID
@@ -1186,11 +1402,17 @@ class Handler(BaseHTTPRequestHandler):
       return
 
     if path == "/connect":
-      self._send_bytes(200, "text/html; charset=utf-8", _connect_page())
+      self._send_bytes(200, "text/html; charset=utf-8", _connect_page(qs=qs))
       return
 
     if path == "/events":
       self._send_bytes(200, "text/html; charset=utf-8", _events_page())
+      return
+
+    if path == "/api/config":
+      cfg = _read_config()
+      out = {"version": cfg.get("version", 1), "settings": cfg.get("settings", {}), "meta": cfg.get("meta", {}), "updated_at": cfg.get("updated_at", "")}
+      self._send_json(200, _redact(out) if isinstance(out, dict) else {"error": "invalid"})
       return
 
     if path == "/logs":
@@ -1603,6 +1825,103 @@ class Handler(BaseHTTPRequestHandler):
         _append_event("ig_publish_error", {"error": str(e)})
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e)})
         return
+
+    self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
+  def do_POST(self) -> None:  # noqa: N802
+    parsed = urlparse(self.path)
+    path = parsed.path
+
+    length = int(self.headers.get("Content-Length", "0") or "0")
+    raw = self.rfile.read(length) if length > 0 else b""
+    ctype = (self.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+
+    data: dict[str, object] = {}
+    try:
+      if ctype == "application/json":
+        obj = json.loads(raw.decode("utf-8") or "{}") if raw else {}
+        if isinstance(obj, dict):
+          data = obj
+      else:
+        # Default: urlencoded form
+        form = parse_qs(raw.decode("utf-8") if raw else "")
+        data = {k: (v[0] if isinstance(v, list) and v else "") for k, v in form.items()}
+    except Exception:
+      data = {}
+
+    _append_event("http_post", {"path": path, "content_type": ctype, "keys": list(data.keys())[:40]})
+
+    if path == "/api/config/update":
+      # Flat settings (empty means "keep current")
+      def get_str(k: str) -> str:
+        v = data.get(k, "")
+        return str(v or "").strip()
+
+      updates: dict[str, str] = {}
+      for k in ["public_base_url", "threads_app_id", "threads_app_secret", "meta_app_id", "meta_app_secret", "graph_api_version"]:
+        v = get_str(k)
+        if v:
+          updates[k] = v
+
+      # Apply flat updates
+      if updates:
+        cfg = _read_config()
+        s = cfg.get("settings", {})
+        if not isinstance(s, dict):
+          s = {}
+        s.update(updates)
+        cfg["settings"] = s
+        cfg["updated_at"] = _now_iso()
+        _write_config(cfg)
+
+      # Cardnews template + theme + fonts
+      tmpl = get_str("cardnews_template")
+      if tmpl:
+        _settings_set(["cardnews", "template"], tmpl)
+
+      theme_updates: dict[str, str] = {}
+      theme_map = {
+        "cardnews_accent_primary": "accent_primary",
+        "cardnews_accent_secondary": "accent_secondary",
+        "cardnews_cover_fill": "cover_fill",
+        "cardnews_panel_fill": "panel_fill",
+        "cardnews_bg_kind": "bg_kind",
+        "cardnews_bg_solid": "bg_solid",
+        "cardnews_bg_from": "bg_from",
+        "cardnews_bg_to": "bg_to",
+      }
+      for form_key, theme_key in theme_map.items():
+        v = get_str(form_key)
+        if v:
+          theme_updates[theme_key] = v
+      if theme_updates:
+        existing = _settings_get(["cardnews", "theme"], {})
+        if not isinstance(existing, dict):
+          existing = {}
+        existing.update(theme_updates)
+        _settings_set(["cardnews", "theme"], existing)
+
+      font_updates: dict[str, str] = {}
+      font_map = {
+        "cardnews_title_name": "title_name",
+        "cardnews_body_name": "body_name",
+        "cardnews_footer_name": "footer_name",
+      }
+      for form_key, font_key in font_map.items():
+        v = get_str(form_key)
+        if v:
+          font_updates[font_key] = v
+      if font_updates:
+        existing_f = _settings_get(["cardnews", "fonts"], {})
+        if not isinstance(existing_f, dict):
+          existing_f = {}
+        existing_f.update(font_updates)
+        _settings_set(["cardnews", "fonts"], existing_f)
+
+      self.send_response(302)
+      self.send_header("Location", "/connect")
+      self.end_headers()
+      return
 
     self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 

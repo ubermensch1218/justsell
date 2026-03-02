@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import datetime
+import os
 from pathlib import Path
 import re
 from typing import Any
@@ -412,12 +413,74 @@ def write_instagram_spec(project_dir: Path, spec: dict[str, Any], *, out_format:
   return out_path
 
 
+def _repo_root() -> Path:
+  return Path(__file__).resolve().parents[1]
+
+
+def _claude_dir() -> Path:
+  v = (os.environ.get("CLAUDE_CONFIG_DIR") or os.environ.get("CLAUDE_HOME") or "").strip()
+  if v:
+    return Path(v).expanduser()
+  return (Path.home() / ".claude").expanduser()
+
+
+def _read_config_settings() -> dict[str, Any]:
+  cfg_path = Path(os.environ.get("JUSTSELL_CONFIG_PATH", "")).expanduser() if os.environ.get("JUSTSELL_CONFIG_PATH") else (_claude_dir() / ".omc" / "justsell" / "config.json")
+  try:
+    data = json.loads(cfg_path.read_text(encoding="utf-8"))
+  except Exception:
+    return {}
+  if not isinstance(data, dict):
+    return {}
+  s = data.get("settings", {})
+  return s if isinstance(s, dict) else {}
+
+
+def _settings_get(settings: dict[str, Any], path: list[str], default: object) -> object:
+  cur: object = settings
+  for k in path:
+    if not isinstance(cur, dict):
+      return default
+    cur = cur.get(k)
+  return cur if cur is not None else default
+
+
+def _load_template(path: Path) -> dict[str, Any]:
+  raw = path.read_text(encoding="utf-8")
+  suf = path.suffix.lower()
+  if suf == ".json":
+    obj = json.loads(raw)
+    if not isinstance(obj, dict):
+      raise ValueError("template root must be an object")
+    return obj
+
+  try:
+    import yaml  # type: ignore
+  except Exception as e:  # pragma: no cover
+    raise RuntimeError("PyYAML is required to read .yaml/.yml templates") from e
+
+  obj = yaml.safe_load(raw)
+  if not isinstance(obj, dict):
+    raise ValueError("template root must be an object")
+  return obj
+
+
+def _deep_merge(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
+  for k, v in src.items():
+    if isinstance(v, dict) and isinstance(dst.get(k), dict):
+      dst[k] = _deep_merge(dst[k], v)  # type: ignore[index]
+    else:
+      dst[k] = v
+  return dst
+
+
 def main() -> int:
   parser = argparse.ArgumentParser(description="Generate channel drafts from projects/<project>/영업Info.md")
   parser.add_argument("channel", choices=["twitter", "threads", "linkedin", "instagram-cardnews"])
   parser.add_argument("--project", required=True, type=Path, help="Path like projects/<project-slug>")
   parser.add_argument("--style", default="bernays", choices=["bernays", "plain"])
   parser.add_argument("--format", default="yaml", choices=["yaml", "json"], help="Spec output format (instagram-cardnews only)")
+  parser.add_argument("--template", default="", help="Base template for instagram-cardnews (YAML/JSON). If omitted, uses config settings.cardnews.template when available.")
   args = parser.parse_args()
 
   sales_path = args.project / "영업Info.md"
@@ -440,6 +503,72 @@ def main() -> int:
     return 0
 
   spec = render_instagram_cardnews_spec(si)
+
+  # Apply template + config defaults (local-first).
+  settings = _read_config_settings()
+  template_str = str(args.template or "").strip()
+  if not template_str:
+    template_str = str(_settings_get(settings, ["cardnews", "template"], "") or "").strip()
+
+  if template_str:
+    tpl_path = Path(template_str)
+    if not tpl_path.is_absolute():
+      tpl_path = (_repo_root() / tpl_path).resolve()
+    if tpl_path.exists():
+      tpl = _load_template(tpl_path)
+      base: dict[str, Any] = {}
+      for k in ["canvas", "theme", "font", "layout", "brand"]:
+        if k in tpl:
+          base[k] = tpl[k]
+      spec = _deep_merge(base, spec)
+
+  # Config overrides: key colors and fonts
+  cfg_theme = _settings_get(settings, ["cardnews", "theme"], {})
+  if isinstance(cfg_theme, dict) and cfg_theme:
+    theme_patch: dict[str, Any] = {}
+    if "accent_primary" in cfg_theme:
+      theme_patch.setdefault("theme", {})["accent_primary"] = str(cfg_theme.get("accent_primary", "")).strip()
+    if "accent_secondary" in cfg_theme:
+      theme_patch.setdefault("theme", {})["accent_secondary"] = str(cfg_theme.get("accent_secondary", "")).strip()
+    cover_fill = str(cfg_theme.get("cover_fill", "")).strip()
+    if cover_fill:
+      theme_patch.setdefault("theme", {}).setdefault("cover", {})["fill"] = cover_fill
+    panel_fill = str(cfg_theme.get("panel_fill", "")).strip()
+    if panel_fill:
+      theme_patch.setdefault("theme", {}).setdefault("panel", {})["fill"] = panel_fill
+    bg_kind = str(cfg_theme.get("bg_kind", "")).strip()
+    if bg_kind:
+      theme_patch.setdefault("theme", {}).setdefault("background", {})["kind"] = bg_kind
+    bg_solid = str(cfg_theme.get("bg_solid", "")).strip()
+    if bg_solid:
+      theme_patch.setdefault("theme", {}).setdefault("background", {})["color"] = bg_solid
+    bg_from = str(cfg_theme.get("bg_from", "")).strip()
+    bg_to = str(cfg_theme.get("bg_to", "")).strip()
+    if bg_from:
+      theme_patch.setdefault("theme", {}).setdefault("background", {})["from"] = bg_from
+    if bg_to:
+      theme_patch.setdefault("theme", {}).setdefault("background", {})["to"] = bg_to
+    spec = _deep_merge(spec, theme_patch)
+
+  cfg_fonts = _settings_get(settings, ["cardnews", "fonts"], {})
+  if isinstance(cfg_fonts, dict) and cfg_fonts:
+    font_patch: dict[str, Any] = {"font": {}}
+    title_name = str(cfg_fonts.get("title_name", "")).strip()
+    body_name = str(cfg_fonts.get("body_name", "")).strip()
+    footer_name = str(cfg_fonts.get("footer_name", "")).strip()
+    if title_name:
+      font_patch["font"]["title_name"] = title_name
+      font_patch["font"]["title_path"] = ""
+    if body_name:
+      font_patch["font"]["body_name"] = body_name
+      font_patch["font"]["body_path"] = ""
+    if footer_name:
+      font_patch["font"]["footer_name"] = footer_name
+      font_patch["font"]["footer_path"] = ""
+    if font_patch["font"]:
+      font_patch["font"]["path"] = ""
+      spec = _deep_merge(spec, font_patch)
+
   out_spec = write_instagram_spec(args.project, spec, out_format=args.format)
   print(str(out_spec))
   return 0

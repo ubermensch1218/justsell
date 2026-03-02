@@ -21,3 +21,12 @@ python3 scripts/render_cardnews.py \
   --spec projects/<project>/channels/instagram/cardnews/<spec>.yaml \
   --out  projects/<project>/channels/instagram/exports
 ```
+
+### Template 기반으로 생성(권장)
+```bash
+python3 scripts/generate_drafts.py instagram-cardnews \
+  --project projects/<project> \
+  --style bernays \
+  --format yaml \
+  --template channels/instagram/templates/cardnews.boc_like.yaml
+```

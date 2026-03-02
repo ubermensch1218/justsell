@@ -49,6 +49,10 @@ PY
   - `meta_app_id`
   - `meta_app_secret`
   - `graph_api_version` (기본값 `v20.0`)
+- Cardnews defaults
+  - template: `channels/instagram/templates/*.yaml`
+  - key colors: `accent_primary`, `cover_fill`, `bg_kind` 등
+  - fonts: title/body/footer font name (예: `GDmarket Bold`, `Pretendard Regular`)
 
 ## Step 2. config.json에 저장(스크립트로)
 아래 커맨드로 저장합니다(빈 값은 기존값 유지):
@@ -59,7 +63,17 @@ python3 scripts/justsell_setup.py \
   --threads-app-secret "<threads_app_secret>" \
   --meta-app-id "<meta_app_id>" \
   --meta-app-secret "<meta_app_secret>" \
-  --graph-api-version "v20.0"
+  --graph-api-version "v20.0" \
+  --cardnews-template "channels/instagram/templates/cardnews.boc_like.yaml" \
+  --accent-primary "#00E676" \
+  --accent-secondary "#111111" \
+  --cover-fill "#00E676" \
+  --panel-fill "#2B2B2B" \
+  --bg-kind "solid" \
+  --bg-solid "#2B2B2B" \
+  --title-font "GDmarket Bold" \
+  --body-font "Pretendard Regular" \
+  --footer-font "Pretendard Regular"
 ```
 
 ## Step 3. 콘솔 실행

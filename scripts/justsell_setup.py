@@ -67,6 +67,20 @@ def main() -> int:
   p.add_argument("--meta-app-secret", default="")
   p.add_argument("--graph-api-version", default="")
 
+  # Cardnews defaults (optional)
+  p.add_argument("--cardnews-template", default="", help="Template path under repo (optional)")
+  p.add_argument("--accent-primary", default="")
+  p.add_argument("--accent-secondary", default="")
+  p.add_argument("--cover-fill", default="")
+  p.add_argument("--panel-fill", default="")
+  p.add_argument("--bg-kind", default="", help="solid|gradient")
+  p.add_argument("--bg-solid", default="")
+  p.add_argument("--bg-from", default="")
+  p.add_argument("--bg-to", default="")
+  p.add_argument("--title-font", default="", help="Font name (example: GDmarket Bold)")
+  p.add_argument("--body-font", default="", help="Font name (example: Pretendard Regular)")
+  p.add_argument("--footer-font", default="", help="Font name (example: Pretendard Regular)")
+
   args = p.parse_args()
 
   claude_dir = args.claude_dir.expanduser() if args.claude_dir else _claude_dir()
@@ -83,6 +97,57 @@ def main() -> int:
     "graph_api_version": args.graph_api_version.strip(),
   }
   cfg = _merge_settings(cfg, updates)
+
+  # Nested cardnews config (local-first; empty means keep)
+  cfg.setdefault("settings", {})
+  if not isinstance(cfg["settings"], dict):
+    cfg["settings"] = {}
+  s = cfg["settings"]
+
+  cardnews: dict[str, Any] = s.get("cardnews", {})
+  if not isinstance(cardnews, dict):
+    cardnews = {}
+
+  if args.cardnews_template.strip():
+    cardnews["template"] = args.cardnews_template.strip()
+
+  theme: dict[str, Any] = cardnews.get("theme", {})
+  if not isinstance(theme, dict):
+    theme = {}
+  for k, v in [
+    ("accent_primary", args.accent_primary),
+    ("accent_secondary", args.accent_secondary),
+    ("cover_fill", args.cover_fill),
+    ("panel_fill", args.panel_fill),
+    ("bg_kind", args.bg_kind),
+    ("bg_solid", args.bg_solid),
+    ("bg_from", args.bg_from),
+    ("bg_to", args.bg_to),
+  ]:
+    vv = (v or "").strip()
+    if vv:
+      theme[k] = vv
+  if theme:
+    cardnews["theme"] = theme
+
+  fonts: dict[str, Any] = cardnews.get("fonts", {})
+  if not isinstance(fonts, dict):
+    fonts = {}
+  for k, v in [
+    ("title_name", args.title_font),
+    ("body_name", args.body_font),
+    ("footer_name", args.footer_font),
+  ]:
+    vv = (v or "").strip()
+    if vv:
+      fonts[k] = vv
+  if fonts:
+    cardnews["fonts"] = fonts
+
+  if cardnews:
+    s["cardnews"] = cardnews
+    cfg["settings"] = s
+    cfg["updated_at"] = _now_iso()
   _write_json(config_path, cfg)
 
   print(str(config_path))
@@ -91,4 +156,3 @@ def main() -> int:
 
 if __name__ == "__main__":
   raise SystemExit(main())
-
