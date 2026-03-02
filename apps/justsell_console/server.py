@@ -508,6 +508,32 @@ def _generate_instagram(project_rel: Path, style: str, fmt: str) -> dict:
   return {"result": res, "spec": spec_path}
 
 
+def _generate_threads(project_rel: Path, style: str) -> dict:
+  _append_event(
+    "generate_threads_start",
+    {"project": str(project_rel), "style": style, "policy": _policy_snapshot_for_project(project_rel)},
+  )
+  res = _run(
+    [
+      "python3",
+      "scripts/generate_drafts.py",
+      "threads",
+      "--project",
+      str(project_rel),
+      "--style",
+      style,
+    ]
+  )
+  out_path = ""
+  if res.get("stdout"):
+    out_path = res["stdout"].strip().splitlines()[-1].strip()
+  _append_event(
+    "generate_threads_done",
+    {"project": str(project_rel), "ok": bool(res.get("ok")), "draft": out_path, "policy": _policy_snapshot_for_project(project_rel)},
+  )
+  return {"result": res, "draft": out_path}
+
+
 def _threads_oauth_config() -> dict:
   return {
     "client_id": _env_or_config("JUSTSELL_THREADS_APP_ID", key="threads_app_id"),
@@ -878,7 +904,9 @@ def _html_page(title: str, body: str) -> bytes:
       const btn = document.getElementById('gen-btn');
       btn.disabled = true;
       try {{
-        const g = await api('/api/generate_instagram?project=' + encodeURIComponent(projectPath) + '&style=bernays&format=json');
+        const style = (document.getElementById('ig-style').value || 'bernays');
+        const format = (document.getElementById('ig-format').value || 'json');
+        const g = await api('/api/generate_instagram?project=' + encodeURIComponent(projectPath) + '&style=' + encodeURIComponent(style) + '&format=' + encodeURIComponent(format));
         const spec = g.spec || '';
         document.getElementById('selected').textContent = spec || '(none)';
         document.getElementById('ig-spec').textContent = spec || '';
@@ -904,6 +932,28 @@ def _html_page(title: str, body: str) -> bytes:
       try {{
         const j = await api('/api/threads/publish_text?text=' + encodeURIComponent(text) + '&confirm=' + (confirm ? '1' : '0') + '&project=' + encodeURIComponent(project));
         document.getElementById('log').textContent = JSON.stringify(j, null, 2);
+      }} catch (e) {{
+        document.getElementById('log').textContent = String(e);
+      }}
+    }}
+
+    async function generateThreadsDraft() {{
+      const project = (document.getElementById('selected-project').textContent || '').trim();
+      const style = (document.getElementById('threads-style').value || 'bernays');
+      if (!project) {{
+        document.getElementById('log').textContent = 'Pick a spec (project) first';
+        return;
+      }}
+      try {{
+        const j = await api('/api/generate_threads?project=' + encodeURIComponent(project) + '&style=' + encodeURIComponent(style));
+        document.getElementById('log').textContent = (j.result.stdout || '') + (j.result.stderr ? '\\n' + j.result.stderr : '');
+        if (j.draft) {{
+          const r = await fetch('/file/' + encodeURIComponent(j.draft));
+          if (r.ok) {{
+            const txt = await r.text();
+            document.getElementById('threads-text').value = txt.trim();
+          }}
+        }}
       }} catch (e) {{
         document.getElementById('log').textContent = String(e);
       }}
@@ -990,6 +1040,23 @@ def _html_page(title: str, body: str) -> bytes:
         <div class="hint">Project: <span id="selected-project"></span></div>
         <div class="hint">Policy: <span id="policy-mode">DRAFT_ONLY</span></div>
         <div class="hint" id="policy-disclaimer"></div>
+        <div class="grid2">
+          <div class="field">
+            <label>Instagram generate style</label>
+            <select id="ig-style">
+              <option value="bernays" selected>bernays</option>
+              <option value="comeback">comeback</option>
+              <option value="plain">plain</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Spec format</label>
+            <select id="ig-format">
+              <option value="json" selected>json</option>
+              <option value="yaml">yaml</option>
+            </select>
+          </div>
+        </div>
         <div style="display:flex;gap:10px">
           <button id="render-btn" class="primary" disabled>Render</button>
           <button id="gen-btn" disabled>Generate + Render</button>
@@ -998,9 +1065,18 @@ def _html_page(title: str, body: str) -> bytes:
         <div class="card" style="border-radius:14px">
           <h2>Publish</h2>
           <div class="list" style="padding-top:0">
-            <div class="hint">Threads (text)</div>
+          <div class="hint">Threads (text)</div>
+            <div class="field" style="margin-top:8px">
+              <label>Threads draft style</label>
+              <select id="threads-style">
+                <option value="bernays" selected>bernays</option>
+                <option value="comeback">comeback</option>
+                <option value="plain">plain</option>
+              </select>
+            </div>
             <textarea id="threads-text" style="width:100%;min-height:80px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;padding:10px;resize:vertical"></textarea>
             <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+              <button onclick="generateThreadsDraft()">Generate draft</button>
               <button onclick="publishThreads(false)">Threads dry-run</button>
               <button class="primary" onclick="publishThreads(true)">Threads publish</button>
             </div>
@@ -1012,7 +1088,7 @@ def _html_page(title: str, body: str) -> bytes:
               <button onclick="publishInstagram(false)">IG dry-run</button>
               <button class="primary" onclick="publishInstagram(true)">IG publish</button>
             </div>
-            <div class="hint" style="margin-top:8px">Requires: connect tokens in <a href="/connect">/connect</a>, set `ig_user_id`, and set `JUSTSELL_PUBLIC_BASE_URL`.</div>
+            <div class="hint" style="margin-top:8px">Requires: connect tokens in <a href="/connect">/connect</a>, set <code>ig_user_id</code>, and set a public base URL (ENV <code>JUSTSELL_PUBLIC_BASE_URL</code> or config <code>settings.public_base_url</code>).</div>
           </div>
         </div>
       </div>
@@ -1209,7 +1285,7 @@ JUSTSELL_THREADS_SCOPES (default {threads_cfg.get("scope","")})
       <a href="/connect?ig_discover=1"><button>Discover accounts</button></a>
     </div>
     {ig_accounts_html}
-    <div class="hint" style="margin-top:10px">Publishing carousels requires a public URL. Set `JUSTSELL_PUBLIC_BASE_URL` to your tunnel (e.g. ngrok/cloudflared) pointing at this console.</div>
+    <div class="hint" style="margin-top:10px">Publishing carousels requires a public URL. Set a tunnel base URL (ENV <code>JUSTSELL_PUBLIC_BASE_URL</code> or Setup form <code>public_base_url</code>).</div>
     <pre style="margin-top:12px">ENV required:
 JUSTSELL_META_APP_ID
 JUSTSELL_META_APP_SECRET
@@ -1635,6 +1711,20 @@ class Handler(BaseHTTPRequestHandler):
       self._send_json(200, _generate_instagram(project_rel, style=style, fmt=fmt))
       return
 
+    if path == "/api/generate_threads":
+      project = (qs.get("project", [""])[0] or "").strip()
+      style = (qs.get("style", ["bernays"])[0] or "bernays").strip()
+      if not project:
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "missing project"})
+        return
+      try:
+        project_rel = _safe_rel_path(project)
+      except Exception:
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid project"})
+        return
+      self._send_json(200, _generate_threads(project_rel, style=style))
+      return
+
     if path == "/api/policy":
       project = (qs.get("project", [""])[0] or "").strip()
       if not project:
@@ -1792,7 +1882,7 @@ class Handler(BaseHTTPRequestHandler):
 
       public_base = _env_or_config("JUSTSELL_PUBLIC_BASE_URL", key="public_base_url", default="")
       if not public_base:
-        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "set JUSTSELL_PUBLIC_BASE_URL (public tunnel URL) to publish"})
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "missing public base URL. set JUSTSELL_PUBLIC_BASE_URL or config settings.public_base_url"})
         return
 
       if not caption:

@@ -15,6 +15,7 @@ OMC(oh-my-claudecode) 스타일의 **마케팅 자동화 플러그인**입니다
 - `templates/`: 브리프, 카피, 카드뉴스 스펙 템플릿
 - `scripts/`: 로컬 자동화(예: 카드뉴스 렌더링)
 - `apps/justsell_console/`: 로컬 콘솔(미리보기/렌더/생성/연결/로그)
+- `agents/`: 마케팅 전용 에이전트 프롬프트(디렉터/카드뉴스/브랜딩/소셜운영)
 
 ## Quick Start
 
@@ -33,6 +34,8 @@ Step 3) Run console
 ```bash
 /js console
 ```
+
+Config 구조: `docs/CONFIG.md`
 
 1) 새 프로젝트 만들기
 ```bash

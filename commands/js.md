@@ -40,6 +40,16 @@ python3 scripts/generate_drafts.py instagram-cardnews --project projects/<projec
 python3 scripts/render_cardnews.py --spec projects/<project>/channels/instagram/cardnews/<spec>.yaml --out projects/<project>/channels/instagram/exports
 ```
 
+4) `oauth`
+- Go to `http://127.0.0.1:5678/connect` and connect:
+  - Threads OAuth
+  - Instagram OAuth
+  - Discover accounts and select exactly one `ig_user_id`
+
+5) `comeback`
+- Generate a comeback draft (Threads) for a project, then review in console before publishing:
+  - Start console: `python3 scripts/justsell_console.py`
+  - Pick any spec of the project, then in Publish panel click "Generate draft" with style `comeback`.
+
 If `$ARGUMENTS` is empty or unknown:
 - Ask the user which one: `init`, `console`, or `cardnews` (and which project slug for cardnews).
-

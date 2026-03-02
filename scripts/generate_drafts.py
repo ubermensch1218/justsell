@@ -559,11 +559,10 @@ def main() -> int:
       tpl_path = (_repo_root() / tpl_path).resolve()
     if tpl_path.exists():
       tpl = _load_template(tpl_path)
-      base: dict[str, Any] = {}
-      for k in ["canvas", "theme", "font", "layout", "brand"]:
+      # Template is a style preset: it should override generated canvas/theme/font/layout.
+      for k in ["canvas", "theme", "font", "layout"]:
         if k in tpl:
-          base[k] = tpl[k]
-      spec = _deep_merge(base, spec)
+          spec[k] = tpl[k]
 
   # Config overrides: key colors and fonts
   cfg_theme = _settings_get(settings, ["cardnews", "theme"], {})
