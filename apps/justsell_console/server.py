@@ -1301,6 +1301,18 @@ def _execute_job(job: dict) -> dict:
     rend = _render_spec(spec_rel)
     return {"ok": True, "gen": gen, "render": rend}
 
+  if kind == "generate_threads_draft":
+    project = str(action.get("project", "")).strip()
+    style = str(action.get("style", "bernays")).strip()
+    if not project:
+      return {"ok": False, "error": "missing project"}
+    project_rel = _safe_rel_path(project)
+    res = _run(["python3", "scripts/generate_drafts.py", "threads", "--project", str(project_rel), "--style", style])
+    out_path = ""
+    if res.get("stdout"):
+      out_path = res["stdout"].strip().splitlines()[-1].strip()
+    return {"ok": bool(res.get("ok")), "draft": out_path, "result": res}
+
   return {"ok": False, "error": f"unknown action kind: {kind}"}
 
 

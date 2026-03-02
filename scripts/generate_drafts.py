@@ -207,6 +207,18 @@ def _bernays_frame(si: SalesInfo) -> dict[str, str]:
 
 
 def render_twitter(si: SalesInfo, style: str) -> str:
+  if style == "comeback":
+    hook = _first_nonempty([si.one_liner, si.project_name, "짧게 근황 공유드립니다."])
+    proof = _first_nonempty([si.proof, ""])
+    cta = _first_nonempty([si.primary_cta, si.contact_channel, "필요하면 한 줄만 남겨주세요."])
+    lines = [hook, ""]
+    if si.value_prop:
+      lines.append(si.value_prop)
+    if proof:
+      lines += ["", f"근거(공개 범위): {proof}"]
+    lines += ["", cta]
+    return "\n".join([l for l in lines if l is not None]).strip() + "\n"
+
   if style != "bernays":
     hook = _first_nonempty([si.one_liner, si.value_prop, si.pains[0] if si.pains else ""])
     points = _limit_list([si.value_prop, *si.differentiators, *(si.features[:2] if si.features else [])], 3)
@@ -229,6 +241,17 @@ def render_twitter(si: SalesInfo, style: str) -> str:
 
 
 def render_threads(si: SalesInfo, style: str) -> str:
+  if style == "comeback":
+    opening = _first_nonempty([si.pains[0] if si.pains else "", si.one_liner, "짧게 근황 공유드립니다."])
+    change = _first_nonempty([si.value_prop, si.differentiators[0] if si.differentiators else ""])
+    proof = _first_nonempty([si.proof, ""])
+    cta = _first_nonempty([si.primary_cta, si.contact_channel, "원하시면 지금 상황만 알려주시면 됩니다."])
+    out = [opening, "", change]
+    if proof:
+      out += ["", f"근거(공개 범위): {proof}"]
+    out += ["", cta]
+    return "\n".join(out).strip() + "\n"
+
   if style != "bernays":
     opening = _first_nonempty([si.pains[0] if si.pains else "", si.one_liner])
     insight = _first_nonempty([si.value_prop, "문제를 해결하는 방식이 바뀌어야 합니다."])
@@ -261,6 +284,18 @@ def render_threads(si: SalesInfo, style: str) -> str:
 
 
 def render_linkedin(si: SalesInfo, style: str) -> str:
+  if style == "comeback":
+    title = _first_nonempty([si.one_liner, si.project_name, "최근 업데이트"])
+    proof = _first_nonempty([si.proof, ""])
+    cta = _first_nonempty([si.primary_cta, si.contact_channel, "원하시면 현재 상황만 공유해 주세요."])
+    bullets = _limit_list([si.value_prop, *(si.features[:2] if si.features else []), *(si.differentiators[:1] if si.differentiators else [])], 3)
+    body = "\n".join([f"- {b}" for b in bullets]) if bullets else "- (내용 추가)"
+    out = [title, "", body]
+    if proof:
+      out += ["", f"근거(공개 범위): {proof}"]
+    out += ["", cta]
+    return "\n".join(out).strip() + "\n"
+
   if style != "bernays":
     pain = si.pains[0] if si.pains else ""
     lead = _first_nonempty([si.one_liner, pain, si.value_prop])
@@ -313,7 +348,7 @@ def render_linkedin(si: SalesInfo, style: str) -> str:
   return "\n".join(out).strip() + "\n"
 
 
-def render_instagram_cardnews_spec(si: SalesInfo) -> dict[str, Any]:
+def render_instagram_cardnews_spec(si: SalesInfo, *, style: str) -> dict[str, Any]:
   f = _bernays_frame(si)
   title = _first_nonempty([si.one_liner, si.value_prop, si.project_name])
   new_standard = _first_nonempty([f["new_standard"], si.value_prop, title])
@@ -326,49 +361,57 @@ def render_instagram_cardnews_spec(si: SalesInfo) -> dict[str, Any]:
   diff_lines = _limit_list(si.differentiators, 3)
   feat_lines = _limit_list(si.features, 3)
 
-  slides: list[dict[str, Any]] = [
-    {
-      "kind": "cover",
-      "title": title or "새 기준",
-      "body": [f"이제 기준은 이겁니다:", new_standard],
-      "footer": si.project_name or "",
-    },
-    {
-      "kind": "pills",
-      "title": "혹시 이런 생각,\n해보신 적 있나요?",
-      "body": _limit_list(
-        [
-          f"\"{pain_lines[0]}\"" if pain_lines else "\"AI를 어디서부터 써야 할지 모르겠어요\"",
-          f"\"{pain_lines[1]}\"" if len(pain_lines) > 1 else f"\"{old_belief}가 당연해졌어요\"",
-          f"\"{hidden_cost}\"",
-          "\"실전 사례가 더 필요해요\"",
+  if style == "comeback":
+    slides: list[dict[str, Any]] = [
+      {"kind": "cover", "title": title or "근황", "body": ["짧게 근황 공유드립니다.", si.value_prop or new_standard], "footer": si.project_name or ""},
+      {"kind": "bullets", "title": "여전히 흔한 문제", "body": pain_lines or [hidden_cost], "footer": si.project_name or ""},
+      {"kind": "bullets", "title": "지금 이렇게 단순화", "body": _limit_list([si.value_prop, *(feat_lines[:2] if feat_lines else [])], 3) or ["(제공 가치 추가)"], "footer": si.project_name or ""},
+      {"kind": "cover", "title": "CTA", "body": [cta or "(CTA 추가)"], "footer": si.project_name or ""},
+    ]
+  else:
+    slides = [
+      {
+        "kind": "cover",
+        "title": title or "새 기준",
+        "body": [f"이제 기준은 이겁니다:", new_standard],
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "pills",
+        "title": "혹시 이런 생각,\n해보신 적 있나요?",
+        "body": _limit_list(
+          [
+            f"\"{pain_lines[0]}\"" if pain_lines else "\"AI를 어디서부터 써야 할지 모르겠어요\"",
+            f"\"{pain_lines[1]}\"" if len(pain_lines) > 1 else f"\"{old_belief}가 당연해졌어요\"",
+            f"\"{hidden_cost}\"",
+            "\"실전 사례가 더 필요해요\"",
+          ],
+          4,
+        ),
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "bullets",
+        "title": "숨은 비용",
+        "body": [
+          hidden_cost,
+          *(pain_lines[:2] if pain_lines else []),
         ],
-        4,
-      ),
-      "footer": si.project_name or "",
-    },
-    {
-      "kind": "bullets",
-      "title": "숨은 비용",
-      "body": [
-        hidden_cost,
-        *(pain_lines[:2] if pain_lines else []),
-      ],
-      "footer": si.project_name or "",
-    },
-    {
-      "kind": "bullets",
-      "title": "새 방법",
-      "body": _limit_list([si.value_prop, *(feat_lines[:2] if feat_lines else [])], 3) or ["(제공 가치 추가)"],
-      "footer": si.project_name or "",
-    },
-    {
-      "kind": "bullets",
-      "title": "차별점",
-      "body": diff_lines or ["(차별점 추가)"],
-      "footer": si.project_name or "",
-    },
-  ]
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "bullets",
+        "title": "새 방법",
+        "body": _limit_list([si.value_prop, *(feat_lines[:2] if feat_lines else [])], 3) or ["(제공 가치 추가)"],
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "bullets",
+        "title": "차별점",
+        "body": diff_lines or ["(차별점 추가)"],
+        "footer": si.project_name or "",
+      },
+    ]
 
   if proof:
     slides.append({"title": "근거", "body": [proof], "footer": si.project_name or ""})
@@ -478,7 +521,7 @@ def main() -> int:
   parser = argparse.ArgumentParser(description="Generate channel drafts from projects/<project>/영업Info.md")
   parser.add_argument("channel", choices=["twitter", "threads", "linkedin", "instagram-cardnews"])
   parser.add_argument("--project", required=True, type=Path, help="Path like projects/<project-slug>")
-  parser.add_argument("--style", default="bernays", choices=["bernays", "plain"])
+  parser.add_argument("--style", default="bernays", choices=["bernays", "plain", "comeback"])
   parser.add_argument("--format", default="yaml", choices=["yaml", "json"], help="Spec output format (instagram-cardnews only)")
   parser.add_argument("--template", default="", help="Base template for instagram-cardnews (YAML/JSON). If omitted, uses config settings.cardnews.template when available.")
   args = parser.parse_args()
@@ -502,7 +545,7 @@ def main() -> int:
     print(str(out))
     return 0
 
-  spec = render_instagram_cardnews_spec(si)
+  spec = render_instagram_cardnews_spec(si, style=args.style)
 
   # Apply template + config defaults (local-first).
   settings = _read_config_settings()

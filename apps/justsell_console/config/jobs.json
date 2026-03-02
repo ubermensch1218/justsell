@@ -10,7 +10,16 @@
         "style": "bernays",
         "format": "json"
       }
+    },
+    {
+      "id": "weekly-threads-comeback-draft",
+      "enabled": false,
+      "schedule": { "kind": "weekly", "days": ["WED"], "hour": 10, "minute": 30 },
+      "action": {
+        "kind": "generate_threads_draft",
+        "project": "projects/_template",
+        "style": "comeback"
+      }
     }
   ]
 }
-
