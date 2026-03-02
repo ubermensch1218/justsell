@@ -84,7 +84,19 @@ def _redact(obj: object) -> object:
     out: dict = {}
     for k, v in obj.items():
       lk = str(k).lower()
-      if any(s in lk for s in ["token", "secret", "client_secret", "access_token", "refresh_token", "app_secret"]):
+      if any(
+        s in lk
+        for s in [
+          "token",
+          "secret",
+          "client_secret",
+          "access_token",
+          "refresh_token",
+          "app_secret",
+          "api_key",
+          "apikey",
+        ]
+      ):
         out[k] = "***"
       else:
         out[k] = _redact(v)
@@ -389,6 +401,13 @@ def _onboarding_status() -> dict:
   cardnews = settings.get("cardnews", {})
   cardnews_ready = isinstance(cardnews, dict) and bool(str(cardnews.get("template", "")).strip() or cardnews.get("theme") or cardnews.get("fonts"))
 
+  gemini_key = (
+    _env("JUSTSELL_GEMINI_API_KEY", "")
+    or _env("GEMINI_API_KEY", "")
+    or str(settings.get("gemini_api_key", "")).strip()
+  )
+  gemini_ready = bool(str(gemini_key).strip())
+
   threads = secrets_data.get("threads", {})
   ig = secrets_data.get("instagram", {})
   threads_connected = isinstance(threads, dict) and bool(str(threads.get("access_token", "")).strip())
@@ -407,6 +426,7 @@ def _onboarding_status() -> dict:
   steps = [
     {"id": "setup", "label": "Setup", "ok": bool(settings)},
     {"id": "cardnews", "label": "Cardnews defaults", "ok": cardnews_ready},
+    {"id": "gemini", "label": "Gemini (optional)", "ok": gemini_ready},
     {"id": "threads", "label": "Threads OAuth", "ok": threads_connected},
     {"id": "instagram", "label": "Instagram OAuth", "ok": ig_connected},
     {"id": "ig_user", "label": "IG account select", "ok": ig_user_selected},
@@ -1381,7 +1401,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     v = str(settings.get(key, "")).strip()
     if not v:
       return "(unset)"
-    if "secret" in key.lower():
+    lk = key.lower()
+    if ("secret" in lk) or ("api_key" in lk) or lk.endswith("_key"):
       return "(set)"
     return v
 
@@ -1499,6 +1520,12 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
         <div class="field"><label>meta_app_secret</label><input type="password" name="meta_app_secret" value="" placeholder="{masked("meta_app_secret")}" /></div>
       </div>
       <div class="field"><label>graph_api_version</label><input type="text" name="graph_api_version" value="{masked("graph_api_version") if masked("graph_api_version") != "(unset)" else ""}" placeholder="v20.0" /></div>
+
+      <div class="divider hint">Gemini (Nanobanana) (optional; store locally; masked)</div>
+      <div class="grid2">
+        <div class="field"><label>gemini_api_key</label><input type="password" name="gemini_api_key" value="" placeholder="{masked("gemini_api_key")}" /></div>
+        <div class="field"><label>gemini_monthly_budget_usd</label><input type="number" step="0.01" min="0" name="gemini_monthly_budget_usd" value="{str(settings.get("gemini_monthly_budget_usd", "")).strip()}" placeholder="0" /></div>
+      </div>
 
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="primary" type="submit">Save</button>
@@ -2294,18 +2321,39 @@ class Handler(BaseHTTPRequestHandler):
         return str(v or "").strip()
 
       updates: dict[str, str] = {}
-      for k in ["public_base_url", "threads_app_id", "threads_app_secret", "meta_app_id", "meta_app_secret", "graph_api_version"]:
+      for k in [
+        "public_base_url",
+        "threads_app_id",
+        "threads_app_secret",
+        "meta_app_id",
+        "meta_app_secret",
+        "graph_api_version",
+        "gemini_api_key",
+      ]:
         v = get_str(k)
         if v:
           updates[k] = v
 
+      budget_raw = get_str("gemini_monthly_budget_usd")
+      budget_value: float | None = None
+      if budget_raw != "":
+        try:
+          budget_value = float(budget_raw)
+          if budget_value < 0:
+            budget_value = 0.0
+        except Exception:
+          budget_value = None
+
       # Apply flat updates
-      if updates:
+      if updates or budget_value is not None:
         cfg = _read_config()
         s = cfg.get("settings", {})
         if not isinstance(s, dict):
           s = {}
-        s.update(updates)
+        if updates:
+          s.update(updates)
+        if budget_value is not None:
+          s["gemini_monthly_budget_usd"] = budget_value
         cfg["settings"] = s
         cfg["updated_at"] = _now_iso()
         _write_config(cfg)

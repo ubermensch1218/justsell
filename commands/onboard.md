@@ -35,21 +35,29 @@ Onboarding steps (one question each):
 2) Cardnews design defaults (template/colors/fonts)
    - Question: "Which preset do you want for cardnews: BOC-like or Claude-like?"
    - Action: tell them exactly which preset button to click in the Setup section, then click Save.
-3) OAuth (optional but recommended)
+3) Gemini (Nanobanana) (optional)
+   - Question: "Do you want to enable Gemini (Nanobanana) now? (yes/no)"
+   - If no: proceed.
+   - If yes:
+     - Ask: "Paste your Gemini API key. (You can revoke/rotate later.)"
+     - Action: in `/connect` Setup, fill `gemini_api_key`, click Save.
+     - Next question: "What is your monthly budget cap in USD? (example: 20)"
+     - Action: fill `gemini_monthly_budget_usd`, click Save.
+4) OAuth (optional but recommended)
    - Question: "Do you want to connect Threads now? (yes/no)"
    - If yes: ask whether they already have `threads_app_id` + `threads_app_secret`. If no, skip Threads and proceed.
    - Action: tell them what field(s) to fill in Setup, Save, then click "Connect Threads (OAuth)".
-4) Instagram (Graph) OAuth
+5) Instagram (Graph) OAuth
    - Question: "Do you want to connect Instagram now? (yes/no)"
    - If yes: ask whether they already have `meta_app_id` + `meta_app_secret`. If no, skip IG and proceed.
    - Action: fill fields, Save, click "Connect Instagram (OAuth)", then click "Discover accounts" and "Select" one `ig_user_id`.
-5) Create a project
+6) Create a project
    - Question: "What is your project slug? (example: my-product)"
    - Action: in the Project section, input slug and click Create.
-6) Fill the two source-of-truth docs
+7) Fill the two source-of-truth docs
    - Question: "Do you already have your sales copy ready to paste into `SALES_INFO.md`? (yes/no)"
    - Action: tell them the exact path and the minimum sections to fill.
-7) First outputs
+8) First outputs
    - Question: "Do you want to generate the first cardnews now? (yes/no)"
    - Action: tell them to open `http://127.0.0.1:5678/`, pick the project, click "Generate + Render".
 

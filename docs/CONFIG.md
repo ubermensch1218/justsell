@@ -62,6 +62,11 @@ OAuth 연결 전에, 각 앱 콘솔에서 Redirect URI를 정확히 등록해야
 - `settings.meta_app_secret`
 - `settings.graph_api_version` (예: `v20.0`)
 
+### Gemini (Nanobanana) (optional)
+Gemini 기반 이미지 생성(예: nanobanana)을 쓸 때, 로컬 설정으로 키와 월 예산을 저장합니다.
+- `settings.gemini_api_key`
+- `settings.gemini_monthly_budget_usd` (예: `20.00`)
+
 ## `secrets` (tokens)
 콘솔 OAuth를 통해 발급된 토큰/선택된 계정 id가 여기에 저장됩니다.
 

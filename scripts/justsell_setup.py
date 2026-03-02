@@ -46,7 +46,7 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
     pass
 
 
-def _merge_settings(cfg: dict[str, Any], updates: dict[str, str]) -> dict[str, Any]:
+def _merge_settings(cfg: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
   cfg.setdefault("version", 1)
   cfg.setdefault("settings", {})
   cfg.setdefault("secrets", {})
@@ -54,7 +54,9 @@ def _merge_settings(cfg: dict[str, Any], updates: dict[str, str]) -> dict[str, A
   if not isinstance(cfg["settings"], dict):
     cfg["settings"] = {}
   for k, v in updates.items():
-    if v == "":
+    if v is None:
+      continue
+    if isinstance(v, str) and v == "":
       continue
     cfg["settings"][k] = v
   cfg["meta"]["setupCompletedAt"] = _now_iso()
@@ -265,15 +267,32 @@ def _wizard(config_path: Path) -> dict[str, Any]:
     "meta_app_id": _prompt("meta_app_id", default=str(_get_path(cfg, ["settings", "meta_app_id"], "") or "")),
     "meta_app_secret": "",
     "graph_api_version": _prompt("graph_api_version", default=str(_get_path(cfg, ["settings", "graph_api_version"], "") or "v20.0") or "v20.0"),
+    "gemini_monthly_budget_usd": None,
+    "gemini_api_key": "",
   }
   existing_threads_secret = bool(str(_get_path(cfg, ["settings", "threads_app_secret"], "") or "").strip())
   existing_meta_secret = bool(str(_get_path(cfg, ["settings", "meta_app_secret"], "") or "").strip())
+  existing_gemini_key = bool(str(_get_path(cfg, ["settings", "gemini_api_key"], "") or "").strip())
   v = _prompt_secret("threads_app_secret (optional)", default_set=existing_threads_secret)
   if v.strip():
     updates["threads_app_secret"] = v.strip()
   v = _prompt_secret("meta_app_secret (optional)", default_set=existing_meta_secret)
   if v.strip():
     updates["meta_app_secret"] = v.strip()
+  v = _prompt_secret("gemini_api_key (optional)", default_set=existing_gemini_key)
+  if v.strip():
+    updates["gemini_api_key"] = v.strip()
+
+  existing_budget = _get_path(cfg, ["settings", "gemini_monthly_budget_usd"], "")
+  budget_raw = _prompt("gemini_monthly_budget_usd (optional, USD)", default=str(existing_budget or ""))
+  if budget_raw.strip() != "":
+    try:
+      budget_value = float(budget_raw.strip())
+      if budget_value < 0:
+        budget_value = 0.0
+      updates["gemini_monthly_budget_usd"] = budget_value
+    except Exception:
+      updates["gemini_monthly_budget_usd"] = None
   cfg = _merge_settings(cfg, updates)
 
   print("")
@@ -368,6 +387,9 @@ def main() -> int:
   p.add_argument("--meta-app-secret", default="")
   p.add_argument("--graph-api-version", default="")
 
+  p.add_argument("--gemini-api-key", default="", help="Gemini API key (optional; stored locally)")
+  p.add_argument("--gemini-monthly-budget-usd", default="", help="Monthly budget cap in USD (optional)")
+
   # Cardnews defaults (optional)
   p.add_argument("--cardnews-template", default="", help="Template path under repo (optional)")
   p.add_argument("--accent-primary", default="")
@@ -410,7 +432,18 @@ def main() -> int:
     "meta_app_id": args.meta_app_id.strip(),
     "meta_app_secret": args.meta_app_secret.strip(),
     "graph_api_version": args.graph_api_version.strip(),
+    "gemini_api_key": args.gemini_api_key.strip(),
   }
+  budget_value: float | None = None
+  if str(args.gemini_monthly_budget_usd or "").strip() != "":
+    try:
+      budget_value = float(str(args.gemini_monthly_budget_usd).strip())
+      if budget_value < 0:
+        budget_value = 0.0
+    except Exception:
+      budget_value = None
+  if budget_value is not None:
+    updates["gemini_monthly_budget_usd"] = budget_value
   cfg = _merge_settings(cfg, updates)
 
   _apply_cardnews_updates(
