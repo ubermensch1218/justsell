@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import shutil
 import subprocess
 import threading
 import time
@@ -287,6 +288,91 @@ def _available_cardnews_templates() -> list[str]:
     except Exception:
       continue
   return items
+
+
+def _safe_project_slug(value: str) -> str:
+  # Keep slugs simple and filesystem-safe.
+  s = str(value or "").strip()
+  if not s:
+    raise ValueError("missing slug")
+  import re
+
+  if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,62}", s):
+    raise ValueError("invalid slug. use [a-z0-9-], 2-63 chars")
+  return s
+
+
+def _list_projects() -> list[str]:
+  base = REPO_ROOT / "projects"
+  if not base.exists():
+    return []
+  out: list[str] = []
+  for p in sorted(base.iterdir()):
+    if not p.is_dir():
+      continue
+    name = p.name
+    if name in ["_template"] or name.startswith("_smoke_"):
+      continue
+    out.append(name)
+  return out
+
+
+def _onboarding_status() -> dict:
+  cfg = _read_config()
+  settings = cfg.get("settings", {})
+  secrets_data = cfg.get("secrets", {})
+  if not isinstance(settings, dict):
+    settings = {}
+  if not isinstance(secrets_data, dict):
+    secrets_data = {}
+
+  cardnews = settings.get("cardnews", {})
+  cardnews_ready = isinstance(cardnews, dict) and bool(str(cardnews.get("template", "")).strip() or cardnews.get("theme") or cardnews.get("fonts"))
+
+  threads = secrets_data.get("threads", {})
+  ig = secrets_data.get("instagram", {})
+  threads_connected = isinstance(threads, dict) and bool(str(threads.get("access_token", "")).strip())
+  ig_connected = isinstance(ig, dict) and bool(str(ig.get("access_token", "")).strip())
+  ig_user_selected = isinstance(ig, dict) and bool(str(ig.get("ig_user_id", "")).strip())
+
+  public_base = _env_or_config("JUSTSELL_PUBLIC_BASE_URL", key="public_base_url", default="")
+  public_base_ready = bool(public_base.strip())
+
+  projects = _list_projects()
+  has_project = bool(projects)
+
+  # A simple “existing user” heuristic: tokens exist but no cardnews defaults set.
+  existing_user = (threads_connected or ig_connected) and not cardnews_ready
+
+  steps = [
+    {"id": "setup", "label": "Setup", "ok": bool(settings)},
+    {"id": "cardnews", "label": "Cardnews defaults", "ok": cardnews_ready},
+    {"id": "threads", "label": "Threads OAuth", "ok": threads_connected},
+    {"id": "instagram", "label": "Instagram OAuth", "ok": ig_connected},
+    {"id": "ig_user", "label": "IG account select", "ok": ig_user_selected},
+    {"id": "public_base", "label": "Public base URL", "ok": public_base_ready},
+    {"id": "project", "label": "Project", "ok": has_project},
+  ]
+
+  next_hint = ""
+  if not cardnews_ready:
+    next_hint = "Open /connect and set template, key colors, and fonts."
+  elif not threads_connected or not ig_connected:
+    next_hint = "Open /connect and complete OAuth connect."
+  elif ig_connected and not ig_user_selected:
+    next_hint = "Open /connect and Discover accounts, then Select one ig_user_id."
+  elif not has_project:
+    next_hint = "Create a project slug from /connect (Project section) or copy projects/_template."
+  else:
+    next_hint = "Go to / and Generate + Render. Publishing remains dry-run by default."
+
+  return {
+    "existing_user": existing_user,
+    "steps": steps,
+    "projects": projects[:20],
+    "public_base_ready": public_base_ready,
+    "next_hint": next_hint,
+  }
 
 
 def _http_json(method: str, url: str, *, data: dict | None = None, headers: dict | None = None) -> dict:
@@ -766,6 +852,23 @@ def _ig_publish_carousel(
 
 
 def _html_page(title: str, body: str) -> bytes:
+  status = _onboarding_status()
+  badges = []
+  for s in status.get("steps", []):
+    if not isinstance(s, dict):
+      continue
+    ok = bool(s.get("ok"))
+    label = str(s.get("label", "")).strip()
+    if not label:
+      continue
+    badges.append(f"<span class='badge {'ok' if ok else 'no'}'>{label}</span>")
+  badge_row = "<div style='display:flex;flex-wrap:wrap;gap:8px'>" + "".join(badges) + "</div>" if badges else ""
+  hint = str(status.get("next_hint", "")).strip()
+  hint_html = f"<div class='hint' style='margin-top:8px'>{hint}</div>" if hint else ""
+  existing_html = ""
+  if bool(status.get("existing_user")):
+    existing_html = "<div class='hint' style='margin-top:8px'>Detected existing OAuth tokens. Recommended: set cardnews defaults (template, colors, fonts) in /connect Setup.</div>"
+
   return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -874,6 +977,20 @@ def _html_page(title: str, body: str) -> bytes:
       font-size: 12px;
     }}
     .hint {{ color: var(--dim); font-size: 12px; }}
+    .badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.25);
+      font-size: 12px;
+      color: var(--dim);
+      white-space: nowrap;
+    }}
+    .badge.ok {{ color: rgba(0,230,118,0.95); border-color: rgba(0,230,118,0.28); background: rgba(0,230,118,0.08); }}
+    .badge.no {{ color: rgba(255,255,255,0.72); }}
     @media (max-width: 980px) {{
       .wrap {{ grid-template-columns: 1fr; }}
     }}
@@ -1026,6 +1143,11 @@ def _html_page(title: str, body: str) -> bytes:
       <a class="hint" href="/logs">logs</a>
     </div>
   </header>
+  <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.10);background:rgba(0,0,0,0.18)">
+    {badge_row}
+    {hint_html}
+    {existing_html}
+  </div>
   <div class="wrap">
     <div class="card">
       <h2>Instagram specs</h2>
@@ -1166,6 +1288,17 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     ]
   )
 
+  projects = _list_projects()
+  project_rows = []
+  for slug in projects[:30]:
+    project_rows.append(
+      "<div class='row'>"
+      f"<div class='meta'><div class='name'>{slug}</div><div class='sub'>projects/{slug}</div></div>"
+      f"<div style='display:flex;gap:10px;flex-wrap:wrap'><a href='/?project=projects/{slug}'><button>Open</button></a></div>"
+      "</div>"
+    )
+  project_list_html = "<div class='divider hint'>Projects</div>" + ("\n".join(project_rows) if project_rows else "<div class='hint'>(none)</div>")
+
   ig_accounts_html = ""
   if qs and str((qs.get("ig_discover", [""])[0] or "")).strip() == "1":
     token = str(ig.get("access_token", "")).strip()
@@ -1250,12 +1383,37 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
         <div class="field"><label>meta_app_id</label><input type="text" name="meta_app_id" value="{masked("meta_app_id") if masked("meta_app_id") != "(unset)" else ""}" /></div>
         <div class="field"><label>meta_app_secret</label><input type="password" name="meta_app_secret" value="" placeholder="{masked("meta_app_secret")}" /></div>
       </div>
+      <div class="field"><label>graph_api_version</label><input type="text" name="graph_api_version" value="{masked("graph_api_version") if masked("graph_api_version") != "(unset)" else ""}" placeholder="v20.0" /></div>
 
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="primary" type="submit">Save</button>
         <a class="hint" href="/api/config"><button type="button">View config (redacted)</button></a>
       </div>
     </form>
+
+    <div class="divider hint">Presets</div>
+    <div class="hint">Use presets to fill template, key colors, and fonts. You can edit before saving.</div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button type="button" onclick="applyPreset('boc')">BOC-like</button>
+      <button type="button" onclick="applyPreset('claude')">Claude-like</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:14px;margin-top:14px">
+    <h2 style="padding:0;margin:0 0 8px 0">Project</h2>
+    <div class="hint">Create a new project from template: <code>projects/_template</code></div>
+    <form method="POST" action="/api/project/create" style="margin-top:12px">
+      <div class="grid2">
+        <div class="field">
+          <label>project slug</label>
+          <input type="text" name="slug" placeholder="example: my-product" />
+        </div>
+        <div class="field" style="display:flex;align-items:end">
+          <button class="primary" type="submit">Create</button>
+        </div>
+      </div>
+    </form>
+    {project_list_html}
   </div>
 
   <div class="card" style="padding:14px">
@@ -1294,6 +1452,43 @@ JUSTSELL_IG_SCOPES (default {ig_cfg.get("scope","")})
 JUSTSELL_GRAPH_API_VERSION (default v20.0)
     </pre>
   </div>
+
+  <script>
+    function setValue(name, value) {{
+      const el = document.querySelector('[name=\"' + name + '\"]');
+      if (!el) return;
+      el.value = value;
+    }}
+    function applyPreset(kind) {{
+      if (kind === 'boc') {{
+        setValue('cardnews_template', 'channels/instagram/templates/cardnews.boc_like.yaml');
+        setValue('cardnews_accent_primary', '#00E676');
+        setValue('cardnews_accent_secondary', '#111111');
+        setValue('cardnews_cover_fill', '#00E676');
+        setValue('cardnews_panel_fill', '#2B2B2B');
+        setValue('cardnews_bg_kind', 'solid');
+        setValue('cardnews_bg_solid', '#2B2B2B');
+        setValue('cardnews_bg_from', '');
+        setValue('cardnews_bg_to', '');
+        setValue('cardnews_title_name', 'GDmarket Bold');
+        setValue('cardnews_body_name', 'Pretendard Regular');
+        setValue('cardnews_footer_name', 'Pretendard Regular');
+      }} else if (kind === 'claude') {{
+        setValue('cardnews_template', 'channels/instagram/templates/cardnews.claude_code_like.yaml');
+        setValue('cardnews_accent_primary', '#FF6A2A');
+        setValue('cardnews_accent_secondary', '#111111');
+        setValue('cardnews_cover_fill', '#FF6A2A');
+        setValue('cardnews_panel_fill', '#141414');
+        setValue('cardnews_bg_kind', 'solid');
+        setValue('cardnews_bg_solid', '#FFFFFF');
+        setValue('cardnews_bg_from', '');
+        setValue('cardnews_bg_to', '');
+        setValue('cardnews_title_name', 'Pretendard Bold');
+        setValue('cardnews_body_name', 'Pretendard Regular');
+        setValue('cardnews_footer_name', 'Pretendard Regular');
+      }}
+    }}
+  </script>
   """.strip()
   return _html_page("connect", body)
 
@@ -1501,6 +1696,14 @@ class Handler(BaseHTTPRequestHandler):
       cfg = _read_config()
       out = {"version": cfg.get("version", 1), "settings": cfg.get("settings", {}), "meta": cfg.get("meta", {}), "updated_at": cfg.get("updated_at", "")}
       self._send_json(200, _redact(out) if isinstance(out, dict) else {"error": "invalid"})
+      return
+
+    if path == "/api/onboarding":
+      self._send_json(200, _onboarding_status())
+      return
+
+    if path == "/api/projects":
+      self._send_json(200, {"projects": _list_projects()})
       return
 
     if path == "/logs":
@@ -2020,6 +2223,32 @@ class Handler(BaseHTTPRequestHandler):
         existing_f.update(font_updates)
         _settings_set(["cardnews", "fonts"], existing_f)
 
+      self.send_response(302)
+      self.send_header("Location", "/connect")
+      self.end_headers()
+      return
+
+    if path == "/api/project/create":
+      slug_raw = str(data.get("slug", "") or "").strip()
+      try:
+        slug = _safe_project_slug(slug_raw)
+      except Exception as e:
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(e)})
+        return
+      src = REPO_ROOT / "projects" / "_template"
+      dst = REPO_ROOT / "projects" / slug
+      if not src.exists() or not src.is_dir():
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "missing projects/_template"})
+        return
+      if dst.exists():
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "project already exists", "project": f"projects/{slug}"})
+        return
+      try:
+        shutil.copytree(src, dst)
+      except Exception as e:
+        self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"copy failed: {e}"})
+        return
+      _append_event("project_create", {"project": f"projects/{slug}"})
       self.send_response(302)
       self.send_header("Location", "/connect")
       self.end_headers()
