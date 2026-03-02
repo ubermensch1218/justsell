@@ -13,7 +13,8 @@ JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 
      - Threads/Meta OAuth app 설정
      - (선택) public_base_url
 3) OAuth
-   - `/connect`에서 Threads/Instagram OAuth 연결
+   - `/connect`에서 Threads OAuth를 먼저 연결
+   - Threads 연결이 끝나면 Instagram OAuth 연결
    - Instagram은 `Discover accounts` → 1개 `Select`해서 `ig_user_id` 고정
 4) Project
    - `/connect`에서 slug로 프로젝트 생성(권장)

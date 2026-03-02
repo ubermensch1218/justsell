@@ -163,6 +163,47 @@ def _write_config(cfg: dict) -> None:
     pass
 
 
+def _meta_set(key: str, value: object) -> None:
+  cfg = _read_config()
+  meta = cfg.get("meta", {})
+  if not isinstance(meta, dict):
+    meta = {}
+  meta[key] = value
+  cfg["meta"] = meta
+  cfg["updated_at"] = _now_iso()
+  _write_config(cfg)
+
+
+_REPO_URL_CACHE: str | None = None
+
+
+def _plugin_repo_url() -> str:
+  # Prefer env override, then .claude-plugin/plugin.json.
+  v = _env("JUSTSELL_REPO_URL", "")
+  if v:
+    return v
+
+  global _REPO_URL_CACHE
+  if _REPO_URL_CACHE is not None:
+    return _REPO_URL_CACHE
+
+  url = ""
+  try:
+    plugin_path = REPO_ROOT / ".claude-plugin" / "plugin.json"
+    if plugin_path.exists():
+      obj = json.loads(plugin_path.read_text(encoding="utf-8"))
+      if isinstance(obj, dict):
+        url = str(obj.get("repository", "") or obj.get("homepage", "") or "").strip()
+  except Exception:
+    url = ""
+
+  if not (url.startswith("https://github.com/") or url.startswith("http://github.com/")):
+    url = ""
+
+  _REPO_URL_CACHE = url
+  return url
+
+
 def _append_log(line: str) -> None:
   LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
   with LOG_PATH.open("a", encoding="utf-8") as f:
@@ -900,6 +941,11 @@ def _ig_publish_carousel(
 
 def _html_page(title: str, body: str) -> bytes:
   status = _onboarding_status()
+  cfg = _read_config()
+  meta = cfg.get("meta", {})
+  if not isinstance(meta, dict):
+    meta = {}
+
   badges = []
   for s in status.get("steps", []):
     if not isinstance(s, dict):
@@ -915,6 +961,26 @@ def _html_page(title: str, body: str) -> bytes:
   existing_html = ""
   if bool(status.get("existing_user")):
     existing_html = "<div class='hint' style='margin-top:8px'>Detected existing OAuth tokens. Recommended: set cardnews defaults (template, colors, fonts) in /connect Setup.</div>"
+
+  repo_url = _plugin_repo_url()
+  star_html = ""
+  if repo_url and not str(meta.get("star_banner_dismissed_at", "")).strip():
+    star_html = (
+      "<div class='card' style='margin-top:12px;border-radius:16px'>"
+      "<div class='list' style='padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap'>"
+      "<div style='display:flex;flex-direction:column;gap:2px'>"
+      "<div style='font-weight:650'>Support</div>"
+      f"<div class='hint'>If this tool helps, open the repository and star it: <a href='{repo_url}' target='_blank' rel='noreferrer'>{repo_url}</a></div>"
+      "</div>"
+      "<div style='display:flex;gap:10px;align-items:center'>"
+      f"<a href='{repo_url}' target='_blank' rel='noreferrer'><button class='primary' type='button'>Open GitHub</button></a>"
+      "<form method='POST' action='/api/meta/star_dismiss' style='margin:0'>"
+      "<button type='submit'>Hide</button>"
+      "</form>"
+      "</div>"
+      "</div>"
+      "</div>"
+    )
 
   return f"""<!doctype html>
 <html lang="en">
@@ -1194,6 +1260,7 @@ def _html_page(title: str, body: str) -> bytes:
     {badge_row}
     {hint_html}
     {existing_html}
+    {star_html}
   </div>
   <div class="wrap">
     <div class="card">
@@ -2316,6 +2383,13 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"copy failed: {e}"})
         return
       _append_event("project_create", {"project": f"{PROJECTS_DIR_NAME}/{slug}"})
+      self.send_response(302)
+      self.send_header("Location", "/connect")
+      self.end_headers()
+      return
+
+    if path == "/api/meta/star_dismiss":
+      _meta_set("star_banner_dismissed_at", _now_iso())
       self.send_response(302)
       self.send_header("Location", "/connect")
       self.end_headers()
