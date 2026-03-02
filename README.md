@@ -1,12 +1,10 @@
-# JustSell (Marketing Ops)
+# justsell
 
-`oh-my-claudecode`, `oh-my-codex` 스타일을 참고해서 만든 **마케팅 운영 전용** 디렉토리 구조입니다.
+OMC(oh-my-claudecode) 스타일의 **마케팅 자동화 플러그인**입니다.
 
-## 목표
-- 채널별 운영 가이드/템플릿을 표준화
-- 프로젝트별(Per-Project) 영업 정보(`영업Info.md`)를 Source of Truth로 유지
-- Instagram 카드뉴스(이미지) 생성 같은 반복 작업을 스크립트로 자동화
-- 마케팅 팀이 단독으로 운영 가능한 로컬 콘솔/로그/권한 정책 제공
+로컬-first로 운영합니다:
+- 로그/잡/채팅: `~/.claude/.omc/justsell/console/`
+- 설정/토큰: `~/.claude/.omc/justsell/config.json`
 
 ## 구조 (요약)
 - `projects/`: 프로젝트별 영업/브랜드/채널별 초안과 산출물
@@ -18,20 +16,22 @@
 - `scripts/`: 로컬 자동화(예: 카드뉴스 렌더링)
 - `apps/justsell_console/`: 로컬 콘솔(미리보기/렌더/생성/연결/로그)
 
-## 빠른 시작
-0) (선택) Claude Code에 설치
+## Quick Start
 
-- Claude Code 플러그인(oh-my-claudecode 방식):
-  - Claude Code에서 실행:
+Step 1) Install (OMC 방식)
 ```bash
-/plugin marketplace add <REPO_URL>
+/plugin marketplace add https://github.com/ubermensch1218/justsell
 /plugin install justsell
 ```
-  - 설치 후: `/justsell-setup`, `/console-start`, `/instagram-cardnews` 같은 스킬이 잡힘
 
-- 로컬 설치(명령/스킬 심기):
+Step 2) Setup (다이얼로그 흐름)
 ```bash
-./install.sh
+/justsell-setup
+```
+
+Step 3) Run console
+```bash
+/console-start
 ```
 
 1) 새 프로젝트 만들기
