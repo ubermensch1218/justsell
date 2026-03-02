@@ -12,7 +12,7 @@ description: Create a new project folder from template and validate required fil
 
 ## Output
 - `projects/<project-slug>/` 생성
-- `projects/<project-slug>/영업Info.md`, `brand.md`, `product.md`, `상담권한.md` 존재 확인
+- `projects/<project-slug>/SalesInfo.md`, `brand.md`, `product.md`, `ConversationPolicy.md` 존재 확인
 
 ## Commands
 ```bash

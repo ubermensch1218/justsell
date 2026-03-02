@@ -1,14 +1,14 @@
 ---
 name: instagram-cardnews
-description: Generate Instagram cardnews spec and render PNGs from projects/<project>/영업Info.md
+description: Generate Instagram cardnews spec and render PNGs from projects/<project>/SalesInfo.md
 ---
 
 # instagram-cardnews
 
-`영업Info.md`를 기준으로 카드뉴스 스펙(YAML)을 만들고, PNG를 렌더합니다.
+`SalesInfo.md`를 기준으로 카드뉴스 스펙(YAML)을 만들고, PNG를 렌더합니다.
 
 ## Input
-- `projects/<project>/영업Info.md`
+- `projects/<project>/SalesInfo.md`
 
 ## Output
 - spec: `projects/<project>/channels/instagram/cardnews/<yyyymmdd-hhmm>.yaml`

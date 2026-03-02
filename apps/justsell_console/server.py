@@ -444,8 +444,8 @@ def _safe_asset_path(value: str) -> Path:
 
 
 def _load_project_policy(project_rel: Path) -> dict:
-  # Reads `projects/<project>/상담권한.md` and parses the first ```justsell-policy JSON block.
-  policy_path = (REPO_ROOT / project_rel / "상담권한.md").resolve()
+  # Reads `projects/<project>/ConversationPolicy.md` and parses the first ```justsell-policy JSON block.
+  policy_path = (REPO_ROOT / project_rel / "ConversationPolicy.md").resolve()
   try:
     policy_path.relative_to(REPO_ROOT)
   except Exception:

@@ -4,7 +4,7 @@
 
 ## 우리가 하는 일
 - 채널별 콘텐츠 제작(초안/카드뉴스)과 발행 워크플로우
-- Per-Project 기준 문서(`영업Info.md`) 관리 및 파생 산출물 생성
+- Per-Project 기준 문서(`SalesInfo.md`) 관리 및 파생 산출물 생성
 - Threads/Instagram(필요 시) 연결해서 로컬에서 게시/응답
 
 ## 우리가 하지 않는 일

@@ -1,14 +1,14 @@
 ---
 name: threads-compose
-description: Draft Threads posts from projects/<project>/영업Info.md
+description: Draft Threads posts from projects/<project>/SalesInfo.md
 ---
 
 # threads-compose
 
-`projects/<project>/영업Info.md`를 기반으로 Threads 초안을 생성해 `drafts/`에 저장합니다.
+`projects/<project>/SalesInfo.md`를 기반으로 Threads 초안을 생성해 `drafts/`에 저장합니다.
 
 ## Input
-- `projects/<project>/영업Info.md`
+- `projects/<project>/SalesInfo.md`
 
 ## Output
 - `projects/<project>/channels/threads/drafts/<yyyymmdd-hhmm>.md`

@@ -1,6 +1,6 @@
 # Workflow
 
-JustSell은 로컬-first로 “영업Info.md → 초안/카드뉴스 스펙 → 렌더 → (선택) 게시”를 반복합니다.
+JustSell은 로컬-first로 “SalesInfo.md → 초안/카드뉴스 스펙 → 렌더 → (선택) 게시”를 반복합니다.
 
 ## Flow A: 신규 설치 사용자
 1) Install
@@ -16,7 +16,7 @@ JustSell은 로컬-first로 “영업Info.md → 초안/카드뉴스 스펙 → 
    - Instagram은 `Discover accounts` → 1개 `Select`해서 `ig_user_id` 고정
 4) Project
    - `/connect`에서 slug로 프로젝트 생성 또는 `cp -R projects/_template projects/<slug>`
-   - `projects/<slug>/영업Info.md` 작성
+   - `projects/<slug>/SalesInfo.md` 작성
 5) Generate + Render
    - 콘솔 `/`에서 프로젝트 선택 → Generate + Render
 
@@ -32,9 +32,9 @@ JustSell은 로컬-first로 “영업Info.md → 초안/카드뉴스 스펙 → 
    - Publish는 dry-run 기본, confirm이 있어야 실행
 
 ## 1) Per-Project 기준 문서 유지
-- 프로젝트별로 `projects/<project>/영업Info.md`를 최신 상태로 유지합니다.
+- 프로젝트별로 `projects/<project>/SalesInfo.md`를 최신 상태로 유지합니다.
 - 카피/카드뉴스/DM은 이 문서에서 파생됩니다.
-- AI 상담/대화 권한은 `projects/<project>/상담권한.md`에서 정의합니다.
+- AI 상담/대화 권한은 `projects/<project>/ConversationPolicy.md`에서 정의합니다.
 
 ## 2) 채널별 산출물 관리
 - 채널 공통 규칙/템플릿은 `channels/<channel>/`에 둡니다.

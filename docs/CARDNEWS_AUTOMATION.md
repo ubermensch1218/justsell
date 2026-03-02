@@ -25,7 +25,7 @@
 
 ## 2) 가변(프로젝트/캠페인)
 **B. Project facts (Source of Truth)**
-- 파일 위치: `projects/<project>/영업Info.md`
+- 파일 위치: `projects/<project>/SalesInfo.md`
 - 여기서 뽑는 것:
   - 프로젝트명/한줄/ICP/문제/가치/차별점/CTA
 
@@ -51,12 +51,12 @@
   - YAML/JSON spec 둘 다 입력 가능
   - `slides[].kind`에 따라 cover/bullets/pills 렌더링
 - 생성기: `scripts/generate_drafts.py`
-  - `projects/<project>/영업Info.md` → 카드뉴스 spec 생성 가능
+  - `projects/<project>/SalesInfo.md` → 카드뉴스 spec 생성 가능
   - 출력 포맷: `--format yaml|json`
 
 ## 추천 운영 플로우
 1) 스타일 확정(템플릿 고정): `channels/instagram/templates/cardnews.claude_code_like.(yaml|json)`
-2) 프로젝트 팩트 유지: `projects/<project>/영업Info.md`
+2) 프로젝트 팩트 유지: `projects/<project>/SalesInfo.md`
 3) 캠페인별로 copy 생성:
    - 자동: `scripts/generate_drafts.py instagram-cardnews --project projects/<project> --style bernays --format json`
    - 필요 시 사람이 커버 footer/문구만 손봄
