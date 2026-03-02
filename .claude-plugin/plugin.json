@@ -5,7 +5,12 @@
   "author": {
     "name": "JustSell"
   },
+  "repository": "https://github.com/ubermensch1218/justsell",
+  "homepage": "https://github.com/ubermensch1218/justsell",
+  "license": "MIT",
   "keywords": [
+    "claude-code",
+    "plugin",
     "skills",
     "marketing",
     "automation"
