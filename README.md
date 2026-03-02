@@ -8,8 +8,8 @@ OMC(oh-my-claudecode) 스타일의 **마케팅 자동화 플러그인**입니다
 
 ## 구조 (요약)
 - `projects/`: 프로젝트별 영업/브랜드/채널별 초안과 산출물
-  - `projects/<project>/SalesInfo.md`: 영업/세일즈 메시지의 기준 문서
-  - `projects/<project>/ConversationPolicy.md`: AI 상담/대화 권한(자동/초안/금지) 정책
+  - `projects/<project>/SALES_INFO.md`: 영업/세일즈 메시지의 기준 문서
+  - `projects/<project>/CONVERSATION_POLICY.md`: AI 상담/대화 권한(자동/초안/금지) 정책
 - `channels/`: 채널 공통 가이드 + 템플릿(트위터/인스타/쓰레드/링크드인)
 - `prompts/`: LLM에 넣는 프롬프트 조각(채널별/작업별)
 - `templates/`: 브리프, 카피, 카드뉴스 스펙 템플릿
@@ -55,7 +55,7 @@ cp -R projects/_template projects/<project-slug>
 ```
 
 2) 프로젝트 정보 채우기
-- `projects/<project-slug>/SalesInfo.md`
+- `projects/<project-slug>/SALES_INFO.md`
 - `projects/<project-slug>/brand.md`
 - `projects/<project-slug>/product.md`
 

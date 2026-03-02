@@ -22,7 +22,7 @@ What you do:
    - 3–5 post beats
    - Comeback sequence (re-engagement) with timing
 4) Map plan into JustSell artifacts:
-   - `projects/<project>/SalesInfo.md` (facts)
+   - `projects/<project>/SALES_INFO.md` (facts)
    - Instagram cardnews spec rendered via templates
    - Threads drafts for publishing
 

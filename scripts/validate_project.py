@@ -15,10 +15,10 @@ class ValidationResult:
 
 def validate_project(project_dir: Path) -> ValidationResult:
   required = [
-    project_dir / "SalesInfo.md",
+    project_dir / "SALES_INFO.md",
     project_dir / "brand.md",
     project_dir / "product.md",
-    project_dir / "ConversationPolicy.md",
+    project_dir / "CONVERSATION_POLICY.md",
   ]
   missing = [str(p) for p in required if not p.exists()]
   return ValidationResult(ok=len(missing) == 0, missing=missing)

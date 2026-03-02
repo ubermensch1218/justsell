@@ -1,19 +1,19 @@
 ---
 name: content-creator
-description: Create audience-focused marketing content (Threads, LinkedIn, Instagram captions) using project SalesInfo.md as source of truth.
+description: Create audience-focused marketing content (Threads, LinkedIn, Instagram captions) using project SALES_INFO.md as source of truth.
 ---
 
 # Content Creator (JustSell)
 
-목표: 프로젝트의 `SalesInfo.md`를 기준으로 “훅 → 가치 → 증거 → CTA” 구조의 콘텐츠를 빠르게 만든다.
+목표: 프로젝트의 `SALES_INFO.md`를 기준으로 “훅 → 가치 → 증거 → CTA” 구조의 콘텐츠를 빠르게 만든다.
 
 전제:
-- 사실/수치/가격/일정은 `projects/<project>/SalesInfo.md`에만 의존한다.
+- 사실/수치/가격/일정은 `projects/<project>/SALES_INFO.md`에만 의존한다.
 - 게시(publish)는 기본 dry-run. 실제 게시하려면 콘솔에서 `confirm=1`을 명시한다.
 - 이모지 금지.
 
 ## Input
-- `projects/<project>/SalesInfo.md`
+- `projects/<project>/SALES_INFO.md`
 - (선택) 캠페인 목적: awareness | leads | sales
 - (선택) 톤: bernays | plain | comeback
 

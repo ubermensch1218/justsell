@@ -1,7 +1,7 @@
 # Instagram Cardnews Prompt
 
 입력:
-- `SalesInfo.md` (프로젝트 기준 문서)
+- `SALES_INFO.md` (프로젝트 기준 문서)
 - 카드뉴스 목표(인지/리드/세일즈/채용)
 
 출력:

@@ -4,7 +4,7 @@ description: Generate Instagram cardnews spec (YAML/JSON) and render PNGs
 
 $ARGUMENTS
 
-You generate Instagram cardnews from `projects/<project>/SalesInfo.md` and render PNG files.
+You generate Instagram cardnews from `projects/<project>/SALES_INFO.md` and render PNG files.
 
 Rules:
 - Use Pretendard if available (download via `scripts/fetch_pretendard.sh`).

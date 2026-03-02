@@ -4,6 +4,6 @@
 각 파일의 `{PLACEHOLDER}`를 실제 정보로 채우세요.
 
 필수:
-- `SalesInfo.md`
+- `SALES_INFO.md`
 - `brand.md`
 - `product.md`

@@ -16,7 +16,7 @@ bash scripts/install_skills.sh
 - `skills/twitter-compose/`: 트위터 초안 생성(파일로 저장)
 - `skills/threads-compose/`: Threads 초안 생성(파일로 저장)
 - `skills/linkedin-compose/`: LinkedIn 초안 생성(파일로 저장)
-- `skills/instagram-cardnews/`: SalesInfo.md 기반 카드뉴스 스펙 생성 + PNG 렌더
+- `skills/instagram-cardnews/`: SALES_INFO.md 기반 카드뉴스 스펙 생성 + PNG 렌더
 - `skills/justsell-setup/`: 설정 위저드(`~/.claude/.js/config.json` 저장)
 - `skills/console-start/`: JustSellConsole 실행(로컬)
 

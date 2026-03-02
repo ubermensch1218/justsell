@@ -522,7 +522,7 @@ def _deep_merge(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> int:
-  parser = argparse.ArgumentParser(description="Generate channel drafts from projects/<project>/SalesInfo.md")
+  parser = argparse.ArgumentParser(description="Generate channel drafts from projects/<project>/SALES_INFO.md")
   parser.add_argument("channel", choices=["twitter", "threads", "linkedin", "instagram-cardnews"])
   parser.add_argument("--project", required=True, type=Path, help="Path like projects/<project-slug>")
   parser.add_argument("--style", default="bernays", choices=["bernays", "plain", "comeback"])
@@ -530,9 +530,9 @@ def main() -> int:
   parser.add_argument("--template", default="", help="Base template for instagram-cardnews (YAML/JSON). If omitted, uses config settings.cardnews.template when available.")
   args = parser.parse_args()
 
-  sales_path = args.project / "SalesInfo.md"
+  sales_path = args.project / "SALES_INFO.md"
   if not sales_path.exists():
-    raise FileNotFoundError(f"Missing: {sales_path} (expected SalesInfo.md)")
+    raise FileNotFoundError(f"Missing: {sales_path} (expected SALES_INFO.md)")
 
   si = parse_sales_info(sales_path)
 

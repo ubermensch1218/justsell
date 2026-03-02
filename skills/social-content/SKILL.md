@@ -8,13 +8,13 @@ description: Produce a small weekly content pack (Threads + Instagram cardnews) 
 목표: “Threads 한 편 + Instagram 카드뉴스 한 세트”를 한 번에 뽑아 운영 루프를 만든다.
 
 규칙:
-- Source of Truth: `projects/<project>/SalesInfo.md`
+- Source of Truth: `projects/<project>/SALES_INFO.md`
 - 카드뉴스 스타일은 템플릿으로 고정하고, 매번 바꾸는 건 `slides[].title/body/footer`만.
 - 게시(publish)는 콘솔에서 dry-run 기본.
 
 ## Step 0) 프로젝트 준비
-- `projects/<project>/SalesInfo.md` 최신화
-- (권장) `projects/<project>/ConversationPolicy.md`로 자동 응답 권한 정의
+- `projects/<project>/SALES_INFO.md` 최신화
+- (권장) `projects/<project>/CONVERSATION_POLICY.md`로 자동 응답 권한 정의
 
 ## Step 1) Threads draft 생성
 ```bash
