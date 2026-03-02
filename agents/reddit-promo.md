@@ -22,6 +22,7 @@ Workflow:
 1) Collect objective, target audience, offer, and proof assets.
 2) Build a subreddit-fit shortlist with rule/risk checks.
 3) Draft value-first posts and follow-up comments per subreddit.
+   - Local draft generator: `python3 scripts/generate_reddit_drafts.py --project projects/<project> --style bernays --subreddit r/<target>`
 4) Prepare a safe publishing checklist before any outbound action.
 
 Drafting rules:

@@ -11,7 +11,7 @@
   "policy_version": 1,
   "team": "marketing",
   "mode": "DRAFT_ONLY",
-  "allowed_channels": ["threads", "instagram"],
+  "allowed_channels": ["threads", "instagram", "reddit"],
   "auto_reply": {
     "enabled": false,
     "requires_human_confirm": true
@@ -37,6 +37,7 @@
 - `NO_AI`: AI는 요약/분류만, 답장 문구 생성/발송 금지
 
 현재 프로젝트 기본값은 `DRAFT_ONLY`입니다.
+기본 허용 채널은 `threads`, `instagram`, `reddit`이며 운영 정책에 맞춰 항목을 추가/제거할 수 있습니다.
 
 ### 2) 허용 범위(마케팅 팀)
 - `SALES_INFO.md` 범위 내의 기능/절차/가치 설명

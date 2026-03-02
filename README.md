@@ -4,7 +4,7 @@ English | [한국어](README.ko.md) | [日本語](README.ja.md)
 
 Local-first marketing automation plugin for Claude Code.
 
-Threads + Instagram cardnews + Remotion video workflows, with local preview and explicit publish confirmation.
+Threads + Instagram cardnews + Reddit draft + Remotion video workflows, with local preview and explicit publish confirmation.
 
 [Quick Start](#quick-start) | [Command Reference](#command-reference) | [Configuration](docs/CONFIG.md) | [Workflow](docs/WORKFLOW.md) | [Console Docs](apps/justsell_console/README.md)
 
@@ -51,6 +51,7 @@ Optional guided onboarding:
 | Setup | `justsell-setup` / `/justsell:js init` | Writes local config and opens OAuth/setup flow |
 | Console | `console-start` / `/justsell:js console` | Starts local dashboard at `http://127.0.0.1:5678/` |
 | Cardnews | `instagram-cardnews` / `/justsell:js cardnews` | Generates cardnews spec and renders PNG files |
+| Reddit draft | `skills/reddit-compose` or `python3 scripts/generate_reddit_drafts.py --project ...` | Generates subreddit-fit draft text with tone tripod |
 | Remotion | `/justsell:js remotion` | Generates Remotion spec and renders MP4 video |
 | Guided onboarding | `/justsell:onboard` | One-step-at-a-time onboarding for first run |
 
