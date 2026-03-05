@@ -1,34 +1,29 @@
 ---
 name: frontend-design
-description: Improve JustSellConsole UI and cardnews style presets (typography, spacing, color system) without breaking local-first constraints.
+description: Production UI/design system tuning for console + cardnews templates
 ---
 
-# Frontend Design (JustSellConsole + Cardnews)
+# frontend-design
 
-목표:
-- JustSellConsole UI를 “설정/연결/미리보기” 관점에서 덜 촌스럽게 만든다.
-- 카드뉴스 템플릿을 “폰트/굵기/여백/넘버링” 기준으로 시스템화한다.
+[FRONTEND DESIGN MODE ACTIVATED]
 
-규칙:
-- UI는 로컬 HTML (server-side string) 기준으로 최소 변경.
-- 색은 `~/.claude/.js/config.json`의 `settings.cardnews.theme`로 제어(또는 ENV override).
-- 폰트는 이름 기반(`Pretendard Regular`)으로 지정하고, 없으면 `assets/fonts/`에 추가한다.
-- 이모지 금지.
+## Operating Goal
+Align console UI and cardnews visual system to a coherent production baseline.
 
-## Quick Audit Checklist
-JustSellConsole:
-- 정보 구조: `/connect`에 Setup → OAuth → Account Select → Project 순서가 한 화면에서 보이는가
-- 경고/가드레일: publish는 confirm 없으면 절대 실행되지 않는가
-- 대비: 텍스트 대비가 충분한가(회색 너무 연하지 않게)
-
-Cardnews:
-- Title weight/size: Bold가 과하지 않은가
-- Body line-height: 너무 빡빡하거나 느슨하지 않은가
-- Accent bar: 두께/간격이 일관적인가
-- Slide number: `01 / 05` 형식, 좌하단, 안전영역에 들어오는가
-
-## Where to edit
+## Ownership
 - Console UI: `apps/justsell_console/server.py`
-- Templates: `channels/instagram/templates/`
-- Renderer: `scripts/render_cardnews.py`
+- Cardnews templates: `channels/instagram/templates/`
+- Cardnews renderer: `scripts/render_cardnews.py`
 
+## Execution Rules
+1) Keep local-first behavior and existing runtime contracts.
+2) Do not introduce publish-by-default behavior.
+3) Preserve accessibility contrast and predictable typography.
+4) Keep changes minimal and testable.
+
+## Quality Checklist
+- Information order in `/connect`: Setup -> OAuth -> Account -> Project
+- Publish guard remains explicit-confirm only
+- Text contrast is readable (`text-gray-600` equivalent or stronger)
+- Cardnews title/body/footer hierarchy is consistent
+- Slide number and safe area are stable across templates

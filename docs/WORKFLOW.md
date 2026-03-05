@@ -2,6 +2,8 @@
 
 JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 렌더 → (선택) 게시”를 반복합니다.
 
+구성요소 정의(Command/Skill/Agent/Script/Artifact)는 `docs/DEFINITIONS.md`를 기준으로 합니다.
+
 ## Flow A: 신규 설치 사용자
 1) Install
    - `/plugin marketplace add https://github.com/ubermensch1218/justsell`
@@ -46,9 +48,32 @@ JustSell은 로컬-first로 “SALES_INFO.md → 초안/카드뉴스 스펙 → 
 - 프로젝트별 초안/발행물은 `~/.claude/.js/projects/<project>/channels/<channel>/` 아래에서 관리합니다.
 
 ## 3) Instagram 카드뉴스
+- 하드가드: 아래 파일이 없거나 미완성이면 generate/render가 실패합니다.
+  - `~/.claude/.js/projects/<project>/channels/instagram/cardnews/_parallel_roles.md`
+  - `~/.claude/.js/projects/<project>/channels/instagram/cardnews/_creative_brief.md`
+  - `~/.claude/.js/projects/<project>/channels/instagram/cardnews/_strategy_lock.md`
+- 운영 기본 플로우:
+  - zero-touch 자동 부트스트랩(기본)
+  - 역할 병렬 패스(`marketing-director`, `cardnews-copy-chief`, `cardnews-designer`, `cardnews-quality-auditor`)
+  - spec 생성 → `scripts/validate_cardnews_spec.py` 통과 → 렌더
+  - strict 수동 모드가 필요하면 `JUSTSELL_STRICT_PIPELINE=1` 사용
 - 카드뉴스 스펙(YAML): `~/.claude/.js/projects/<project>/channels/instagram/cardnews/*.yaml`
 - 결과물(PNG): `~/.claude/.js/projects/<project>/channels/instagram/exports/`
 - 생성 스크립트: `scripts/render_cardnews.py`
 
 ## 4) 검증
 - 필수 파일 누락/경로를 `scripts/validate_project.py`로 확인합니다.
+
+## 5) Remotion (Flow Recording First)
+- Remotion은 텍스트만으로 구성하지 않고 실제 플로우 녹화 입력을 필수로 사용합니다.
+- 필수 스텝 파일:
+  - `~/.claude/.js/projects/<project>/channels/instagram/remotion/_flow_steps.json`
+  - 예시 템플릿: `templates/briefs/remotion_flow_steps.example.json`
+- 모듈 구조 권장:
+  - `_flow_steps.json`에 `modules[]`를 정의해 기능별 클립으로 녹화
+  - 녹화 결과 manifest: `~/.claude/.js/projects/<project>/channels/instagram/remotion/_flow_manifest.json`
+- 실행 순서:
+  1) `scripts/record_flow.py`로 흐름 영상 녹화
+  2) 기능별 모듈 클립 생성 + (옵션) 자동 스티치
+  3) `scripts/generate_remotion_spec.py --flow-manifest <manifest.json>`
+  4) `scripts/render_remotion_video.py`로 최종 렌더

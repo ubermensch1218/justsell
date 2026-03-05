@@ -1,19 +1,29 @@
 ---
 name: linkedin-compose
-description: Draft LinkedIn posts from projects/<project>/SALES_INFO.md
+description: Production LinkedIn draft generation from SALES_INFO source of truth
 ---
 
 # linkedin-compose
 
-`projects/<project>/SALES_INFO.md`를 기반으로 LinkedIn 초안을 생성해 `drafts/`에 저장합니다.
+[LINKEDIN MODE ACTIVATED]
+
+## Operating Goal
+Generate publish-ready LinkedIn drafts with consistent conversion structure.
 
 ## Input
-- `projects/<project>/SALES_INFO.md`
+- `~/.claude/.js/projects/<project>/SALES_INFO.md`
 
 ## Output
-- `projects/<project>/channels/linkedin/drafts/<yyyymmdd-hhmm>.md`
+- `~/.claude/.js/projects/<project>/channels/linkedin/drafts/<yyyymmdd-hhmm>.md`
+
+## Execution Rules
+1) Use `SALES_INFO.md` as single source of truth.
+2) No interview flow.
+3) Publish stays dry-run in console unless explicitly confirmed.
 
 ## Commands
 ```bash
-python3 scripts/generate_drafts.py linkedin --project projects/<project> --style bernays
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+python3 scripts/generate_drafts.py linkedin --project "$PROJECT" --style bernays
 ```

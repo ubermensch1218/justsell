@@ -33,21 +33,26 @@ OAuth 연결 전에, 각 앱 콘솔에서 Redirect URI를 정확히 등록해야
 - Meta Developers 콘솔에서 "Valid OAuth Redirect URIs"에 등록해야 합니다.
 
 ### `settings.cardnews`
+기본값 정책:
+- `settings.cardnews`가 비어 있어도, 런타임에서 아래 기본 프로필이 자동 적용됩니다.
+- 즉, 새 사용자도 별도 설정 없이 동일한 기본 템플릿/컬러/폰트를 사용합니다.
+- 기존 구버전 기본값(orange + dark panel)만 저장된 경우에는 생성 단계에서 white-tech 기본값으로 자동 마이그레이션됩니다. (환경변수 `JUSTSELL_KEEP_LEGACY_THEME=1`이면 유지)
+
 ```json
 {
-  "template": "channels/instagram/templates/cardnews.boc_like.yaml",
+  "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
   "theme": {
-    "accent_primary": "#00E676",
-    "accent_secondary": "#111111",
-    "cover_fill": "#00E676",
-    "panel_fill": "#2B2B2B",
+    "accent_primary": "#2563EB",
+    "accent_secondary": "#0F172A",
+    "cover_fill": "#F3F8FF",
+    "panel_fill": "#FFFFFF",
     "bg_kind": "solid",
-    "bg_solid": "#2B2B2B",
+    "bg_solid": "#FFFFFF",
     "bg_from": "",
     "bg_to": ""
   },
   "fonts": {
-    "title_name": "GDmarket Bold",
+    "title_name": "Pretendard Bold",
     "body_name": "Pretendard Regular",
     "footer_name": "Pretendard Regular"
   }

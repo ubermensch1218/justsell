@@ -1,17 +1,22 @@
 ---
-description: Generate Remotion promo video spec (JSON) and render MP4
+description: Activate Instagram remotion video mode
 ---
+
+[REMOTION MODE ACTIVATED]
 
 $ARGUMENTS
 
-You generate a Remotion promo video from `projects/<project>/SALES_INFO.md`.
+You are operating the JustSell remotion pipeline.
 
-Rules:
-- Keep outputs local under `~/.claude/.js/`.
-- Use channel profile + safe area + device font profile.
-- Do not publish anything to external platforms in this flow.
+## Operating Goal
+Generate and render publish-ready Instagram video assets with real recorded flow input.
 
-Commands (example):
+## Execution Rules
+1) Use local-first project path under `~/.claude/.js/projects/`.
+2) Record input flow first (internal UI or product flow), then generate spec.
+3) No external publish in this flow.
+
+## Commands
 ```bash
 JS_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 if [ -z "$JS_ROOT" ]; then
@@ -28,16 +33,33 @@ test -n "$JS_ROOT"
 
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+FLOW_STEPS="$PROJECT/channels/instagram/remotion/_flow_steps.json"
+FLOW_ARG=()
+FLOW_MANIFEST="$PROJECT/channels/instagram/remotion/_flow_manifest.json"
+
+if [ ! -f "$FLOW_STEPS" ]; then
+  echo "Missing flow steps: $FLOW_STEPS"
+  echo "Copy template: $JS_ROOT/templates/briefs/remotion_flow_steps.example.json"
+  exit 1
+fi
+FLOW_VIDEO="$(python3 "$JS_ROOT/scripts/record_flow.py" --project "$PROJECT" --steps "$FLOW_STEPS" --manifest-out "$FLOW_MANIFEST")"
+test -n "$FLOW_VIDEO"
+FLOW_ARG=(--flow-video "$FLOW_VIDEO")
 
 python3 "$JS_ROOT/scripts/generate_remotion_spec.py" \
   --project "$PROJECT" \
   --style bernays \
   --video-seconds 22 \
-  --video-format auto \
+  --video-format square \
   --channel-profile instagram-reel \
-  --device-profile mobile
+  --device-profile mobile \
+  --flow-manifest "$FLOW_MANIFEST" \
+  "${FLOW_ARG[@]}"
+
+LATEST_SPEC="$(ls -1t "$PROJECT/channels/instagram/remotion/"*.json 2>/dev/null | head -n 1)"
+test -n "$LATEST_SPEC"
 
 python3 "$JS_ROOT/scripts/render_remotion_video.py" \
-  --spec "$PROJECT/channels/instagram/remotion/<spec>.json" \
+  --spec "$LATEST_SPEC" \
   --out "$PROJECT/channels/instagram/videos"
 ```

@@ -46,6 +46,58 @@ JSON
   chmod 600 "$CONFIG_PATH" || true
 fi
 
+# Backfill shared cardnews defaults (do not overwrite existing user values).
+export CONFIG_PATH
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+
+cfg_path = Path(os.environ["CONFIG_PATH"]).expanduser()
+obj = {}
+try:
+    if cfg_path.exists():
+        obj = json.loads(cfg_path.read_text(encoding="utf-8"))
+except Exception:
+    obj = {}
+if not isinstance(obj, dict):
+    obj = {}
+obj.setdefault("version", 1)
+settings = obj.get("settings", {})
+if not isinstance(settings, dict):
+    settings = {}
+
+cardnews = settings.get("cardnews", {})
+if not isinstance(cardnews, dict):
+    cardnews = {}
+
+cardnews.setdefault("template", "channels/instagram/templates/cardnews.claude_code_like.yaml")
+
+theme = cardnews.get("theme", {})
+if not isinstance(theme, dict):
+    theme = {}
+theme.setdefault("accent_primary", "#2563EB")
+theme.setdefault("accent_secondary", "#0F172A")
+theme.setdefault("cover_fill", "#F3F8FF")
+theme.setdefault("panel_fill", "#FFFFFF")
+theme.setdefault("bg_kind", "solid")
+theme.setdefault("bg_solid", "#FFFFFF")
+theme.setdefault("bg_from", "")
+theme.setdefault("bg_to", "")
+cardnews["theme"] = theme
+
+fonts = cardnews.get("fonts", {})
+if not isinstance(fonts, dict):
+    fonts = {}
+fonts.setdefault("title_name", "Pretendard Bold")
+fonts.setdefault("body_name", "Pretendard Regular")
+fonts.setdefault("footer_name", "Pretendard Regular")
+cardnews["fonts"] = fonts
+
+settings["cardnews"] = cardnews
+obj["settings"] = settings
+cfg_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
 # Optional local CLI shim (does not touch global PATH)
 cp -f "$ROOT/bin/js" "$JS_BIN_DIR/js"
 chmod +x "$JS_BIN_DIR/js" || true

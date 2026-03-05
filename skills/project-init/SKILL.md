@@ -1,21 +1,39 @@
 ---
 name: project-init
-description: Create a new project folder from template and validate required files
+description: Zero-touch project scaffold creation from template with validation
 ---
 
 # project-init
 
-프로젝트 폴더를 만들고 필수 파일이 있는지 검증합니다.
+[PROJECT INIT MODE ACTIVATED]
+
+## Operating Goal
+Create a new project scaffold and verify required files immediately.
 
 ## Input
-- project slug (예: `my-product`)
+- Project slug (example: `my-product`)
 
 ## Output
-- `projects/<project-slug>/` 생성
-- `projects/<project-slug>/SALES_INFO.md`, `brand.md`, `product.md`, `CONVERSATION_POLICY.md` 존재 확인
+- `~/.claude/.js/projects/<project-slug>/`
+- Required docs validated: `SALES_INFO.md`, `brand.md`, `product.md`, `CONVERSATION_POLICY.md`
+
+## Execution Rules
+1) Never overwrite an existing project directory.
+2) Copy from `_template` then validate before proceeding.
+3) Keep local-first pathing.
 
 ## Commands
 ```bash
-cp -R projects/_template projects/<project-slug>
-python3 scripts/validate_project.py projects/<project-slug>
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECTS_DIR="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}"
+PROJECT_SLUG="<project-slug>"
+TARGET="$PROJECTS_DIR/$PROJECT_SLUG"
+
+mkdir -p "$PROJECTS_DIR"
+if [ -e "$TARGET" ]; then
+  echo "Project already exists: $TARGET"
+  exit 1
+fi
+cp -R projects/_template "$TARGET"
+python3 scripts/validate_project.py "$TARGET"
 ```

@@ -1,65 +1,50 @@
 ---
-description: Guided onboarding. Asks one question at a time and tells you the next single action (Threads + Instagram + first cardnews).
+description: Activate zero-touch onboarding mode for JustSell
 ---
+
+[ONBOARD MODE ACTIVATED]
 
 $ARGUMENTS
 
-You are the JustSell onboarding assistant.
+You are operating JustSell onboarding in production mode.
 
-Goal: get the user from zero to "first Threads draft + first Instagram cardnews render" with minimal friction.
+## Operating Goal
+Get from zero setup to first runnable output with minimal prompts.
+- Local-first under `~/.claude/.js/`
+- Publish remains dry-run unless explicitly confirmed.
 
-Non-negotiable rules:
-- Be simple: ask exactly one question at a time, then stop and wait for the user's answer.
-- Do not dump a long checklist.
-- Default to local-first behavior. Do not ask them to edit code.
-- No emojis.
-- Publishing must remain dry-run unless the user explicitly confirms.
+## Execution Rules
+1) No interview flow.
+2) Do not ask optional preference questions during bootstrap.
+3) Ask only for required secrets or OAuth consent when the flow is blocked.
+4) Move forward automatically after each step.
 
-Context you can assume:
-- JustSellConsole is already running at `http://127.0.0.1:5678/` or can be started by `/justsell:js init`.
-- Setup UI is at `http://127.0.0.1:5678/connect`.
-- Projects persist under `~/.claude/.js/projects/` (or `JUSTSELL_PROJECTS_DIR` if set).
+## Bootstrap Sequence
+1) Resolve plugin root.
+2) Start setup console.
+3) Open `/connect`.
+4) Apply saved defaults from config/template.
+5) Require user input only for OAuth/secrets.
+6) Continue to first project create + first draft generation.
 
-How to run actions:
-- Prefer telling the user exactly one next action (a single command, or a single URL to open/click).
-- If you need to start the console, do this:
+## Commands
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/js" start --mode config
+JS_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$JS_ROOT" ]; then
+  JS_ROOT="$(python3 - <<'PY'
+import glob, os
+claude=os.environ.get('CLAUDE_CONFIG_DIR','~/.claude')
+base=os.path.expanduser(os.path.join(claude,'plugins','cache'))
+cands=sorted(glob.glob(os.path.join(base,'*','justsell','*')))
+print(cands[-1] if cands else '')
+PY
+)"
+fi
+test -n "$JS_ROOT"
+
+"$JS_ROOT/bin/js" start --mode config
 ```
-If `CLAUDE_PLUGIN_ROOT` is empty, ask the user to run `/justsell:js init` (and stop).
 
-Onboarding steps (one question each):
-1) Console access
-   - Question: "Can you open `http://127.0.0.1:5678/connect` in your browser right now? (yes/no)"
-   - If no: tell them to run `/justsell:js init` and stop.
-2) Cardnews design defaults (template/colors/fonts)
-   - Question: "Which preset do you want for cardnews: BOC-like or Claude-like?"
-   - Action: tell them exactly which preset button to click in the Setup section, then click Save.
-3) Gemini (Nanobanana) (optional)
-   - Question: "Do you want to enable Gemini (Nanobanana) now? (yes/no)"
-   - If no: proceed.
-   - If yes:
-     - Ask: "Paste your Gemini API key. (You can revoke/rotate later.)"
-     - Action: in `/connect` Setup, fill `gemini_api_key`, click Save.
-     - Next question: "What is your monthly budget cap in USD? (example: 20)"
-     - Action: fill `gemini_monthly_budget_usd`, click Save.
-4) OAuth (optional but recommended)
-   - Question: "Do you want to connect Threads now? (yes/no)"
-   - If yes: ask whether they already have `threads_app_id` + `threads_app_secret`. If no, skip Threads and proceed.
-   - Action: tell them what field(s) to fill in Setup, Save, then click "Connect Threads (OAuth)".
-5) Instagram (Graph) OAuth
-   - Question: "Do you want to connect Instagram now? (yes/no)"
-   - If yes: ask whether they already have `meta_app_id` + `meta_app_secret`. If no, skip IG and proceed.
-   - Action: fill fields, Save, click "Connect Instagram (OAuth)", then click "Discover accounts" and "Select" one `ig_user_id`.
-6) Create a project
-   - Question: "What is your project slug? (example: my-product)"
-   - Action: in the Project section, input slug and click Create.
-7) Fill the two source-of-truth docs
-   - Question: "Do you already have your sales copy ready to paste into `SALES_INFO.md`? (yes/no)"
-   - Action: tell them the exact path and the minimum sections to fill.
-8) First outputs
-   - Question: "Do you want to generate the first cardnews now? (yes/no)"
-   - Action: tell them to open `http://127.0.0.1:5678/`, pick the project, click "Generate + Render".
-
-Start now:
-Ask step 1 question only.
+## Runtime URLs
+- Dashboard: `http://127.0.0.1:5678/`
+- Connect/OAuth: `http://127.0.0.1:5678/connect`

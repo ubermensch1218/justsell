@@ -19,12 +19,35 @@ export const RenderInputSchema = z.object({
     scenes: z.array(
       z.object({
         id: z.string(),
+        kind: z.string().optional(),
+        flow_module_id: z.string().optional(),
         title: z.string(),
         lines: z.array(z.string()),
         start_sec: z.number(),
         end_sec: z.number(),
       }),
     ),
+    flow_recording: z
+      .object({
+        video_path: z.string().optional(),
+        public_src: z.string().optional(),
+        title: z.string().optional(),
+        caption: z.string().optional(),
+        fit: z.string().optional(),
+      })
+      .optional(),
+    flow_recordings: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          video_path: z.string().optional(),
+          public_src: z.string().optional(),
+          title: z.string().optional(),
+          caption: z.string().optional(),
+          fit: z.string().optional(),
+        }),
+      )
+      .optional(),
   }),
 });
 

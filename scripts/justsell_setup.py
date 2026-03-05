@@ -224,7 +224,7 @@ def _wizard(config_path: Path) -> dict[str, Any]:
 
   print("")
   print("Step 1/4: Cardnews preset (design defaults)")
-  presets = ["BOC-like (solid dark + neon accent)", "Claude-like (orange cover + dark slides)", "Custom / keep current"]
+  presets = ["BOC-like (solid dark + neon accent)", "Claude-like (white tech + app-first)", "Custom / keep current"]
   preset_idx = _prompt_choice("Select preset", presets, default_index=0)
   preset: dict[str, str] = {}
   if preset_idx == 0:
@@ -245,10 +245,10 @@ def _wizard(config_path: Path) -> dict[str, Any]:
   elif preset_idx == 1:
     preset = {
       "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
-      "accent_primary": "#FF6A2A",
-      "accent_secondary": "#111111",
-      "cover_fill": "#FF6A2A",
-      "panel_fill": "#141414",
+      "accent_primary": "#2563EB",
+      "accent_secondary": "#0F172A",
+      "cover_fill": "#F3F8FF",
+      "panel_fill": "#FFFFFF",
       "bg_kind": "solid",
       "bg_solid": "#FFFFFF",
       "bg_from": "",

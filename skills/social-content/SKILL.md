@@ -1,35 +1,42 @@
 ---
 name: social-content
-description: Produce a small weekly content pack (Threads + Instagram cardnews) with consistent voice and local-first outputs.
+description: Production weekly content pack orchestration (Threads + Instagram)
 ---
 
-# Social Content Pack (Threads + Instagram)
+# social-content
 
-목표: “Threads 한 편 + Instagram 카드뉴스 한 세트”를 한 번에 뽑아 운영 루프를 만든다.
+[SOCIAL PACK MODE ACTIVATED]
 
-규칙:
-- Source of Truth: `projects/<project>/SALES_INFO.md`
-- 카드뉴스 스타일은 템플릿으로 고정하고, 매번 바꾸는 건 `slides[].title/body/footer`만.
-- 게시(publish)는 콘솔에서 dry-run 기본.
+## Operating Goal
+Produce one consistent weekly pack in a single run.
+- Threads draft + Instagram cardnews set
+- Source of truth: `~/.claude/.js/projects/<project>/SALES_INFO.md`
 
-## Step 0) 프로젝트 준비
-- `projects/<project>/SALES_INFO.md` 최신화
-- (권장) `projects/<project>/CONVERSATION_POLICY.md`로 자동 응답 권한 정의
+## Parallel Roles
+- `marketing-director`
+- `social-ops`
+- `cardnews-copy-chief`
+- `cardnews-quality-auditor`
 
-## Step 1) Threads draft 생성
+## Execution Rules
+1) No interview flow.
+2) Generate drafts first, render second.
+3) Keep publish action in console as dry-run default.
+
+## Commands
 ```bash
-python3 scripts/generate_drafts.py threads --project projects/<project> --style bernays
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+python3 scripts/generate_drafts.py threads --project "$PROJECT" --style bernays
+
+python3 scripts/generate_drafts.py instagram-cardnews --project "$PROJECT" --style bernays --format yaml
+LATEST_SPEC="$(ls -1t "$PROJECT/channels/instagram/cardnews/"*.yaml "$PROJECT/channels/instagram/cardnews/"*.json 2>/dev/null | head -n 1)"
+python3 scripts/validate_cardnews_spec.py --spec "$LATEST_SPEC"
+python3 scripts/render_cardnews.py --spec "$LATEST_SPEC" --out "$PROJECT/channels/instagram/exports"
 ```
 
-## Step 2) Instagram 카드뉴스 spec 생성 + 렌더
+## Console Review
 ```bash
-python3 scripts/generate_drafts.py instagram-cardnews --project projects/<project> --style bernays --format yaml
-python3 scripts/render_cardnews.py --spec projects/<project>/channels/instagram/cardnews/<spec>.yaml --out projects/<project>/channels/instagram/exports
+python3 scripts/justsell_console.py
 ```
-
-## Step 3) 콘솔에서 미리보기/게시(dry-run)
-```bash
-/justsell:js console
-```
-- Threads: Generate draft → 필요 시 수정 → Publish (confirm=1)
-- Instagram: Render 확인 → caption 편집 → Publish (confirm=1)
+Open `http://127.0.0.1:5678/` and publish only with explicit confirmation.

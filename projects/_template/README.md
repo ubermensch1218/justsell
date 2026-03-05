@@ -7,3 +7,7 @@
 - `SALES_INFO.md`
 - `brand.md`
 - `product.md`
+- `channels/instagram/cardnews/_agent_settings.md`
+- `channels/instagram/cardnews/_parallel_roles.md`
+- `channels/instagram/cardnews/_creative_brief.md`
+- `channels/instagram/cardnews/_strategy_lock.md`

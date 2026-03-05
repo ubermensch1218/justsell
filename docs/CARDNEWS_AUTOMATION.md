@@ -67,13 +67,13 @@
 디자인 템플릿 파일을 건드리지 않고 “키컬러”만 바꾸고 싶으면 ENV override를 씁니다.
 
 지원 ENV:
-- `JUSTSELL_ACCENT_PRIMARY` (예: `#FF6A2A`)
-- `JUSTSELL_ACCENT_SECONDARY` (예: `#111111`)
-- `JUSTSELL_COVER_FILL` (예: `#FF6A2A`)
-- `JUSTSELL_PANEL_FILL` (예: `#141414`)
+- `JUSTSELL_ACCENT_PRIMARY` (예: `#2563EB`)
+- `JUSTSELL_ACCENT_SECONDARY` (예: `#0F172A`)
+- `JUSTSELL_COVER_FILL` (예: `#F3F8FF`)
+- `JUSTSELL_PANEL_FILL` (예: `#FFFFFF`)
 - `JUSTSELL_BG_KIND` (`solid` 또는 `gradient`)
 - `JUSTSELL_BG_SOLID` (예: `#FFFFFF`)
-- `JUSTSELL_BG_FROM`, `JUSTSELL_BG_TO` (그라디언트용, 예: `#050505`, `#0B0F19`)
+- `JUSTSELL_BG_FROM`, `JUSTSELL_BG_TO` (그라디언트용, 예: `#FFFFFF`, `#F4F7FB`)
 
 ## 폰트를 “이름”으로 지정하기
 파일 경로 대신, “폰트 이름”으로 지정할 수 있습니다. 렌더러는 `assets/fonts/`와 OS 폰트 디렉토리에서 파일명을 기반으로 찾습니다.

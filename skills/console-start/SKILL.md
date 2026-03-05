@@ -1,19 +1,24 @@
 ---
 name: console-start
-description: Start JustSellConsole (localhost 5678) for connect/preview/render/publish
+description: Activate JustSell console runtime (localhost 5678)
 ---
 
 # console-start
 
-JustSellConsole를 로컬에서 실행합니다. 연결(OAuth), 미리보기, 렌더, 게시(dry-run 기본)를 한 곳에서 처리합니다.
+[CONSOLE MODE ACTIVATED]
 
-## Input
-- (optional) `projects/<project>/` 경로
+## Operating Goal
+Start local console fast, with zero setup friction.
+- Local-first storage under `~/.claude/.js/`
+- Publish remains dry-run unless explicitly confirmed.
 
-## Output
-- 로컬 콘솔: `http://127.0.0.1:5678/`
-- 로컬 저장소: `~/.claude/.js/console/` (로그/이벤트/잡)
-- 설정/토큰: `~/.claude/.js/config.json`
+## Inputs
+- Optional project slug/path.
+
+## Outputs
+- Dashboard: `http://127.0.0.1:5678/`
+- Connect: `http://127.0.0.1:5678/connect`
+- State: `~/.claude/.js/config.json`, `~/.claude/.js/console/`
 
 ## Commands
 ```bash

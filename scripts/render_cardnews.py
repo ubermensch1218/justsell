@@ -11,6 +11,8 @@ import re
 from PIL import Image, ImageDraw, ImageFont
 from PIL import ImageFilter
 
+from cardnews_pipeline_guard import ensure_agent_settings, ensure_creative_brief, ensure_parallel_roles, ensure_strategy_lock, infer_project_dir_from_spec
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASSETS_FONTS_DIR = REPO_ROOT / "assets" / "fonts"
@@ -18,6 +20,37 @@ ASSETS_FONTS_DIR = REPO_ROOT / "assets" / "fonts"
 
 def _env(name: str) -> str:
   return os.environ.get(name, "").strip()
+
+
+def _claude_dir() -> Path:
+  v = (_env("CLAUDE_CONFIG_DIR") or _env("CLAUDE_HOME") or "").strip()
+  if v:
+    return Path(v).expanduser()
+  return (Path.home() / ".claude").expanduser()
+
+
+def _justsell_home() -> Path:
+  v = (_env("JUSTSELL_HOME") or "").strip()
+  if v:
+    return Path(v).expanduser()
+  return (_claude_dir() / ".js").expanduser()
+
+
+def _projects_root() -> Path:
+  v = (_env("JUSTSELL_PROJECTS_DIR") or "").strip()
+  if v:
+    return Path(v).expanduser().parent
+  return _justsell_home()
+
+
+def _resolve_local_first_path(path: Path) -> Path:
+  p = path.expanduser()
+  if p.is_absolute():
+    return p.resolve()
+  parts = p.parts
+  if parts and parts[0] == "projects":
+    return (_projects_root() / p).resolve()
+  return (Path.cwd() / p).resolve()
 
 
 def _load_spec(path: Path) -> dict[str, Any]:
@@ -507,7 +540,14 @@ def _draw_pills(
 
 
 def render_cardnews(spec_path: Path, out_dir: Path) -> list[Path]:
-  spec_path = spec_path.expanduser().resolve()
+  spec_path = _resolve_local_first_path(spec_path)
+  out_dir = _resolve_local_first_path(out_dir)
+  project_dir = infer_project_dir_from_spec(spec_path)
+  if project_dir is not None:
+    ensure_agent_settings(project_dir)
+    ensure_parallel_roles(project_dir)
+    ensure_creative_brief(project_dir)
+    ensure_strategy_lock(project_dir)
   spec = _load_spec(spec_path)
 
   canvas = spec.get("canvas", {})

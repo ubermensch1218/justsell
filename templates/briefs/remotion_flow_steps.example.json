@@ -1,0 +1,39 @@
+{
+  "start_url": "http://127.0.0.1:5678/",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "modules": [
+    {
+      "id": "setup-connect",
+      "title": "Setup and Connect",
+      "caption": "OAuth and account setup flow",
+      "steps": [
+        {
+          "action": "goto",
+          "url": "http://127.0.0.1:5678/connect"
+        },
+        {
+          "action": "wait",
+          "ms": 1200
+        }
+      ]
+    },
+    {
+      "id": "dashboard-generate",
+      "title": "Generate and Review",
+      "caption": "Generate + render review flow",
+      "steps": [
+        {
+          "action": "goto",
+          "url": "http://127.0.0.1:5678/"
+        },
+        {
+          "action": "wait",
+          "ms": 1200
+        }
+      ]
+    }
+  ]
+}

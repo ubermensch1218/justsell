@@ -4,11 +4,14 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import datetime
+import copy
 import os
 from pathlib import Path
 import re
 from typing import Any
 import json
+
+from cardnews_pipeline_guard import ensure_agent_settings, ensure_creative_brief, ensure_parallel_roles, ensure_strategy_lock
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,76 @@ class SalesInfo:
   differentiators: list[str]
   proof: str
   primary_cta: str
+
+
+DEFAULT_CARDNEWS_SETTINGS: dict[str, Any] = {
+  "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
+  "theme": {
+    "accent_primary": "#2563EB",
+    "accent_secondary": "#0F172A",
+    "cover_fill": "#F3F8FF",
+    "panel_fill": "#FFFFFF",
+    "bg_kind": "solid",
+    "bg_solid": "#FFFFFF",
+    "bg_from": "",
+    "bg_to": "",
+  },
+  "fonts": {
+    "title_name": "Pretendard Bold",
+    "body_name": "Pretendard Regular",
+    "footer_name": "Pretendard Regular",
+  },
+}
+
+LEGACY_CARDNEWS_THEME: dict[str, str] = {
+  "accent_primary": "#FF6A2A",
+  "accent_secondary": "#111111",
+  "cover_fill": "#FF6A2A",
+  "panel_fill": "#141414",
+  "bg_kind": "solid",
+  "bg_solid": "#FFFFFF",
+  "bg_from": "",
+  "bg_to": "",
+}
+
+
+def _deep_merge_defaults(base: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+  for k, v in defaults.items():
+    if isinstance(v, dict):
+      cur = base.get(k)
+      if not isinstance(cur, dict):
+        cur = {}
+      base[k] = _deep_merge_defaults(cur, v)
+      continue
+    if k not in base or base.get(k) is None:
+      base[k] = v
+  return base
+
+
+def _default_settings() -> dict[str, Any]:
+  return {
+    "cardnews": copy.deepcopy(DEFAULT_CARDNEWS_SETTINGS),
+  }
+
+
+def _norm_theme_value(v: object) -> str:
+  s = str(v or "").strip()
+  if s.startswith("#"):
+    return s.upper()
+  return s
+
+
+def _should_migrate_legacy_theme(cfg_theme: dict[str, Any], *, template_str: str) -> bool:
+  if os.environ.get("JUSTSELL_KEEP_LEGACY_THEME", "").strip().lower() in {"1", "true", "yes", "on"}:
+    return False
+  if "cardnews.claude_code_like" not in template_str:
+    return False
+  for k, legacy in LEGACY_CARDNEWS_THEME.items():
+    if k not in cfg_theme:
+      return False
+    if _norm_theme_value(cfg_theme.get(k)) != _norm_theme_value(legacy):
+      return False
+  return True
 
 
 def _clean_placeholder(s: str) -> str:
@@ -421,11 +494,11 @@ def render_instagram_cardnews_spec(si: SalesInfo, *, style: str) -> dict[str, An
   return {
     "canvas": {"width": 1080, "height": 1350},
     "theme": {
-      "background": {"kind": "gradient", "from": "#050505", "to": "#0B0F19"},
-      "accent_primary": "#FF3B30",
-      "accent_secondary": "#5856D6",
-      "card": {"fill": "rgba(255,255,255,0.03)", "border": "rgba(255,255,255,0.08)", "radius": 40},
-      "text": {"title": "#FFFFFF", "body": "#FFFFFF", "dim": "#A0A0A0"},
+      "background": {"kind": "solid", "color": "#FFFFFF"},
+      "accent_primary": "#2563EB",
+      "accent_secondary": "#0F172A",
+      "card": {"fill": "rgba(255,255,255,0.95)", "border": "rgba(15,23,42,0.14)", "radius": 40},
+      "text": {"title": "#0F172A", "body": "#0F172A", "dim": "#475569"},
     },
     "brand": {"name": si.project_name or "", "contact": si.contact_channel or ""},
     "font": {"path": "", "title_size": 84, "body_size": 46, "footer_size": 30},
@@ -467,20 +540,55 @@ def _claude_dir() -> Path:
   return (Path.home() / ".claude").expanduser()
 
 
+def _justsell_home() -> Path:
+  v = (os.environ.get("JUSTSELL_HOME") or "").strip()
+  if v:
+    return Path(v).expanduser()
+  return (_claude_dir() / ".js").expanduser()
+
+
+def _projects_dir() -> Path:
+  v = (os.environ.get("JUSTSELL_PROJECTS_DIR") or "").strip()
+  if v:
+    return Path(v).expanduser()
+  return (_justsell_home() / "projects").expanduser()
+
+
+def _resolve_project_path(project: Path) -> Path:
+  p = project.expanduser()
+  if p.is_absolute():
+    return p.resolve()
+
+  parts = p.parts
+  projects_dir = _projects_dir()
+  projects_root = projects_dir.parent
+
+  # Local-first: treat `projects/<slug>` as <JUSTSELL_HOME>/projects/<slug>.
+  if parts and parts[0] == "projects":
+    return (projects_root / p).resolve()
+
+  # Convenience: allow slug-only input (e.g. `--project my-brand`).
+  if len(parts) == 1:
+    return (projects_dir / p).resolve()
+
+  return (Path.cwd() / p).resolve()
+
+
 def _read_config_settings() -> dict[str, Any]:
   if os.environ.get("JUSTSELL_CONFIG_PATH"):
     cfg_path = Path(os.environ.get("JUSTSELL_CONFIG_PATH", "")).expanduser()
   else:
-    base = _claude_dir()
-    cfg_path = base / ".js" / "config.json"
+    cfg_path = _justsell_home() / "config.json"
   try:
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
   except Exception:
-    return {}
+    return _default_settings()
   if not isinstance(data, dict):
-    return {}
+    return _default_settings()
   s = data.get("settings", {})
-  return s if isinstance(s, dict) else {}
+  if not isinstance(s, dict):
+    s = {}
+  return _deep_merge_defaults(s, _default_settings())
 
 
 def _settings_get(settings: dict[str, Any], path: list[str], default: object) -> object:
@@ -524,38 +632,47 @@ def _deep_merge(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
 def main() -> int:
   parser = argparse.ArgumentParser(description="Generate channel drafts from projects/<project>/SALES_INFO.md")
   parser.add_argument("channel", choices=["twitter", "threads", "linkedin", "instagram-cardnews"])
-  parser.add_argument("--project", required=True, type=Path, help="Path like projects/<project-slug>")
+  parser.add_argument("--project", required=True, type=Path, help="Project path. Supports slug-only or projects/<project-slug>.")
   parser.add_argument("--style", default="bernays", choices=["bernays", "plain", "comeback"])
   parser.add_argument("--format", default="yaml", choices=["yaml", "json"], help="Spec output format (instagram-cardnews only)")
   parser.add_argument("--template", default="", help="Base template for instagram-cardnews (YAML/JSON). If omitted, uses config settings.cardnews.template when available.")
   args = parser.parse_args()
 
-  sales_path = args.project / "SALES_INFO.md"
+  project_dir = _resolve_project_path(args.project)
+  sales_path = project_dir / "SALES_INFO.md"
   if not sales_path.exists():
     raise FileNotFoundError(f"Missing: {sales_path} (expected SALES_INFO.md)")
 
   si = parse_sales_info(sales_path)
 
   if args.channel == "twitter":
-    out = write_draft(args.project, "twitter", render_twitter(si, args.style))
+    out = write_draft(project_dir, "twitter", render_twitter(si, args.style))
     print(str(out))
     return 0
   if args.channel == "threads":
-    out = write_draft(args.project, "threads", render_threads(si, args.style))
+    out = write_draft(project_dir, "threads", render_threads(si, args.style))
     print(str(out))
     return 0
   if args.channel == "linkedin":
-    out = write_draft(args.project, "linkedin", render_linkedin(si, args.style))
+    out = write_draft(project_dir, "linkedin", render_linkedin(si, args.style))
     print(str(out))
     return 0
 
   spec = render_instagram_cardnews_spec(si, style=args.style)
+  ensure_agent_settings(project_dir)
+  ensure_parallel_roles(project_dir)
+  ensure_creative_brief(project_dir)
+  ensure_strategy_lock(project_dir)
 
   # Apply template + config defaults (local-first).
   settings = _read_config_settings()
   template_str = str(args.template or "").strip()
   if not template_str:
     template_str = str(_settings_get(settings, ["cardnews", "template"], "") or "").strip()
+  if not template_str:
+    default_template = "channels/instagram/templates/cardnews.claude_code_like.yaml"
+    if (_repo_root() / default_template).exists():
+      template_str = default_template
 
   if template_str:
     tpl_path = Path(template_str).expanduser()
@@ -571,6 +688,8 @@ def main() -> int:
   # Config overrides: key colors and fonts
   cfg_theme = _settings_get(settings, ["cardnews", "theme"], {})
   if isinstance(cfg_theme, dict) and cfg_theme:
+    if _should_migrate_legacy_theme(cfg_theme, template_str=template_str):
+      cfg_theme = copy.deepcopy(DEFAULT_CARDNEWS_SETTINGS.get("theme", {}))
     theme_patch: dict[str, Any] = {}
     if "accent_primary" in cfg_theme:
       theme_patch.setdefault("theme", {})["accent_primary"] = str(cfg_theme.get("accent_primary", "")).strip()
@@ -615,7 +734,7 @@ def main() -> int:
       font_patch["font"]["path"] = ""
       spec = _deep_merge(spec, font_patch)
 
-  out_spec = write_instagram_spec(args.project, spec, out_format=args.format)
+  out_spec = write_instagram_spec(project_dir, spec, out_format=args.format)
   print(str(out_spec))
   return 0
 

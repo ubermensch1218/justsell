@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from apps.justsell_console.server import CONFIG_PATH, JUSTSELL_HOME, PROJECTS_DIR, run_server  # noqa: E402
+from apps.justsell_console.server import CONFIG_PATH, JUSTSELL_HOME, PROJECTS_DIR, _config_settings, _read_config, run_server  # noqa: E402
 
 
 def _env(name: str, default: str = "") -> str:
@@ -59,11 +59,9 @@ def _read_json(path: Path, default: dict) -> dict:
 
 
 def _status() -> dict:
-  cfg = _read_json(CONFIG_PATH, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
-  settings = cfg.get("settings", {})
+  cfg = _read_config()
+  settings = _config_settings()
   secrets = cfg.get("secrets", {})
-  if not isinstance(settings, dict):
-    settings = {}
   if not isinstance(secrets, dict):
     secrets = {}
 

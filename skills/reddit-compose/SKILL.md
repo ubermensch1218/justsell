@@ -1,26 +1,32 @@
 ---
 name: reddit-compose
-description: Draft Reddit posts from projects/<project>/SALES_INFO.md with product/brand/channel tone tripod
+description: Production Reddit draft generation with subreddit-aware tone controls
 ---
 
 # reddit-compose
 
-`projects/<project>/SALES_INFO.md`와 `projects/<project>/brand.md`를 바탕으로 Reddit 초안을 생성합니다.
+[REDDIT MODE ACTIVATED]
 
-출력:
-- `projects/<project>/channels/reddit/drafts/<yyyymmdd-hhmmss>.md`
+## Operating Goal
+Generate Reddit drafts aligned to product, brand, and subreddit tone.
 
-실행:
+## Input
+- `~/.claude/.js/projects/<project>/SALES_INFO.md`
+- `~/.claude/.js/projects/<project>/brand.md`
+
+## Output
+- `~/.claude/.js/projects/<project>/channels/reddit/drafts/<yyyymmdd-hhmmss>.md`
+
+## Execution Rules
+1) Use local project files only.
+2) No interview flow.
+3) Keep publish as dry-run until explicit confirmation.
+
+## Commands
 ```bash
-python3 scripts/generate_reddit_drafts.py --project projects/<project> --style bernays
-```
-
-서브레딧 맞춤 톤:
-```bash
-python3 scripts/generate_reddit_drafts.py --project projects/<project> --style bernays --subreddit r/webdev
-```
-
-근황/복귀 스타일:
-```bash
-python3 scripts/generate_reddit_drafts.py --project projects/<project> --style comeback
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+python3 scripts/generate_reddit_drafts.py --project "$PROJECT" --style bernays
+python3 scripts/generate_reddit_drafts.py --project "$PROJECT" --style bernays --subreddit r/webdev
+python3 scripts/generate_reddit_drafts.py --project "$PROJECT" --style comeback
 ```

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import html
 import json
 import os
+import copy
 import secrets
 import shutil
 import subprocess
@@ -15,6 +17,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import parse_qs, unquote, urlparse
+
+from apps.justsell_console.setup_validation import validate_setup_form
 
 
 def _env(name: str, default: str = "") -> str:
@@ -63,6 +67,45 @@ HOME_JST_CONSOLE_DIR = Path.home() / ".jst" / "console"
 HOME_JST_SECRETS_PATH = HOME_JST_CONSOLE_DIR / "secrets.json"
 
 HOME_CCS_JUSTSELL_CONFIG_PATH = Path.home() / ".ccs" / "justsell" / "config.json"
+
+
+DEFAULT_CARDNEWS_SETTINGS: dict[str, object] = {
+  "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
+  "theme": {
+    "accent_primary": "#FF6A2A",
+    "accent_secondary": "#111111",
+    "cover_fill": "#FF6A2A",
+    "panel_fill": "#141414",
+    "bg_kind": "solid",
+    "bg_solid": "#FFFFFF",
+    "bg_from": "",
+    "bg_to": "",
+  },
+  "fonts": {
+    "title_name": "Pretendard Bold",
+    "body_name": "Pretendard Regular",
+    "footer_name": "Pretendard Regular",
+  },
+}
+
+
+def _deep_merge_defaults(base: dict, defaults: dict) -> dict:
+  for k, v in defaults.items():
+    if isinstance(v, dict):
+      cur = base.get(k)
+      if not isinstance(cur, dict):
+        cur = {}
+      base[k] = _deep_merge_defaults(cur, v)
+      continue
+    if k not in base or base.get(k) is None:
+      base[k] = v
+  return base
+
+
+def _default_settings() -> dict:
+  return {
+    "cardnews": copy.deepcopy(DEFAULT_CARDNEWS_SETTINGS),
+  }
 
 
 def _now_iso() -> str:
@@ -270,7 +313,9 @@ def _get_secret(path: list[str]) -> dict | None:
 def _config_settings() -> dict:
   cfg = _read_config()
   s = cfg.get("settings", {})
-  return s if isinstance(s, dict) else {}
+  if not isinstance(s, dict):
+    s = {}
+  return _deep_merge_defaults(s, _default_settings())
 
 
 def _settings_get(path: list[str], default: object) -> object:
@@ -391,10 +436,8 @@ def _list_projects() -> list[str]:
 
 def _onboarding_status() -> dict:
   cfg = _read_config()
-  settings = cfg.get("settings", {})
+  settings = _config_settings()
   secrets_data = cfg.get("secrets", {})
-  if not isinstance(settings, dict):
-    settings = {}
   if not isinstance(secrets_data, dict):
     secrets_data = {}
 
@@ -959,13 +1002,23 @@ def _ig_publish_carousel(
   return {"ok": False, "error": last_err or "publish failed", "children": children_ids, "carousel": carousel}
 
 
-def _html_page(title: str, body: str) -> bytes:
+def _html_page(title: str, body: str, *, include_preview: bool = True, left_title: str = "Instagram specs") -> bytes:
   status = _onboarding_status()
   cfg = _read_config()
   meta = cfg.get("meta", {})
   if not isinstance(meta, dict):
     meta = {}
 
+  badge_targets = {
+    "Setup": "/connect?tab=setup#setup",
+    "Cardnews defaults": "/connect?tab=setup#setup",
+    "Gemini (optional)": "/connect?tab=setup#setup",
+    "Threads OAuth": "/connect?tab=threads#threads",
+    "Instagram OAuth": "/connect?tab=instagram#instagram",
+    "IG account select": "/connect?tab=instagram#instagram",
+    "Public base URL": "/connect?tab=setup#setup",
+    "Project": "/connect?tab=project#project",
+  }
   badges = []
   for s in status.get("steps", []):
     if not isinstance(s, dict):
@@ -974,8 +1027,12 @@ def _html_page(title: str, body: str) -> bytes:
     label = str(s.get("label", "")).strip()
     if not label:
       continue
-    badges.append(f"<span class='badge {'ok' if ok else 'no'}'>{label}</span>")
+    badge_class = "ok" if ok else "no"
+    href = badge_targets.get(label, "/connect")
+    safe_label = html.escape(label)
+    badges.append(f"<a class='badge guard-nav {badge_class}' href='{href}' title='Open setup section'>{safe_label}</a>")
   badge_row = "<div style='display:flex;flex-wrap:wrap;gap:8px'>" + "".join(badges) + "</div>" if badges else ""
+  badge_help = "<div class='hint' style='margin-top:8px'>Status chips are clickable.</div>" if badges else ""
   hint = str(status.get("next_hint", "")).strip()
   hint_html = f"<div class='hint' style='margin-top:8px'>{hint}</div>" if hint else ""
   existing_html = ""
@@ -993,7 +1050,7 @@ def _html_page(title: str, body: str) -> bytes:
       f"<div class='hint'>If this tool helps, open the repository and star it: <a href='{repo_url}' target='_blank' rel='noreferrer'>{repo_url}</a></div>"
       "</div>"
       "<div style='display:flex;gap:10px;align-items:center'>"
-      f"<a href='{repo_url}' target='_blank' rel='noreferrer'><button class='primary' type='button'>Open GitHub</button></a>"
+      f"<a class='btn-link primary' href='{repo_url}' target='_blank' rel='noreferrer'>Open GitHub</a>"
       "<form method='POST' action='/api/meta/star_dismiss' style='margin:0'>"
       "<button type='submit'>Hide</button>"
       "</form>"
@@ -1001,6 +1058,78 @@ def _html_page(title: str, body: str) -> bytes:
       "</div>"
       "</div>"
     )
+
+  wrap_class = "wrap" if include_preview else "wrap single"
+  left_block = (
+    f"<div class='card'><h2>{left_title}</h2><div class='list'>{body}</div></div>"
+    if include_preview
+    else body
+  )
+  preview_block = ""
+  if include_preview:
+    preview_block = """
+    <div class="card">
+      <h2>Preview</h2>
+      <div class="preview">
+        <div class="hint">Selected: <span id="selected">(none)</span></div>
+        <div class="hint">Project: <span id="selected-project"></span></div>
+        <div class="hint">Policy: <span id="policy-mode">DRAFT_ONLY</span></div>
+        <div class="hint" id="policy-disclaimer"></div>
+        <div class="grid2">
+          <div class="field">
+            <label>Instagram generate style</label>
+            <select id="ig-style">
+              <option value="bernays" selected>bernays</option>
+              <option value="comeback">comeback</option>
+              <option value="plain">plain</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Spec format</label>
+            <select id="ig-format">
+              <option value="json" selected>json</option>
+              <option value="yaml">yaml</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button id="render-btn" class="primary" disabled>Render</button>
+          <button id="gen-btn" disabled>Generate + Render</button>
+        </div>
+        <div id="thumbs" class="thumbs"><div class="hint">Select a spec from the left list to enable Render/Generate.</div></div>
+        <div class="card" style="border-radius:14px">
+          <h2>Publish</h2>
+          <div class="list" style="padding-top:0">
+          <div class="hint">Threads (text)</div>
+            <div class="field" style="margin-top:8px">
+              <label>Threads draft style</label>
+              <select id="threads-style">
+                <option value="bernays" selected>bernays</option>
+                <option value="comeback">comeback</option>
+                <option value="plain">plain</option>
+              </select>
+            </div>
+            <textarea id="threads-text" style="width:100%;min-height:80px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;padding:10px;resize:vertical"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+              <button onclick="generateThreadsDraft()">Generate draft</button>
+              <button onclick="publishThreads(false)">Threads dry-run</button>
+              <button class="primary" onclick="publishThreads(true)">Threads publish</button>
+            </div>
+            <div style="height:12px"></div>
+            <div class="hint">Instagram (carousel)</div>
+            <div class="hint">Spec: <span id="ig-spec"></span></div>
+            <input id="ig-caption" placeholder="caption" style="width:100%;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;padding:10px" />
+            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+              <button onclick="publishInstagram(false)">IG dry-run</button>
+              <button class="primary" onclick="publishInstagram(true)">IG publish</button>
+            </div>
+            <div class="hint" style="margin-top:8px">Requires: connect tokens in <a href="/connect?tab=setup#setup">/connect</a>, set <code>ig_user_id</code>, and set a public base URL (ENV <code>JUSTSELL_PUBLIC_BASE_URL</code> or config <code>settings.public_base_url</code>).</div>
+          </div>
+        </div>
+      </div>
+      <pre id="log">(logs)</pre>
+    </div>
+    """.strip()
 
   return f"""<!doctype html>
 <html lang="en">
@@ -1040,6 +1169,7 @@ def _html_page(title: str, body: str) -> bytes:
       justify-content: space-between;
     }}
     .wrap {{ padding: 18px; display: grid; grid-template-columns: 1fr 420px; gap: 18px; }}
+    .wrap.single {{ grid-template-columns: 1fr; }}
     .card {{
       border: 1px solid var(--border);
       background: var(--panel);
@@ -1076,6 +1206,24 @@ def _html_page(title: str, body: str) -> bytes:
       background: rgba(255,106,42,0.18);
     }}
     button:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+    a.btn-link {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      line-height: 1.1;
+    }}
+    a.btn-link.primary {{
+      border-color: rgba(255,106,42,0.45);
+      background: rgba(255,106,42,0.18);
+    }}
     input[type="text"], input[type="password"], input[type="number"], select {{
       width: 100%;
       box-sizing: border-box;
@@ -1110,6 +1258,34 @@ def _html_page(title: str, body: str) -> bytes:
       font-size: 12px;
     }}
     .hint {{ color: var(--dim); font-size: 12px; }}
+    .section-title {{
+      margin-top: 12px;
+      margin-bottom: 6px;
+      padding-left: 10px;
+      border-left: 3px solid rgba(255,106,42,0.55);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: rgba(255,255,255,0.90);
+      text-transform: uppercase;
+    }}
+    .field-help {{
+      margin-top: 4px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.62);
+    }}
+    .field-error {{
+      margin-top: 4px;
+      min-height: 14px;
+      font-size: 11px;
+      color: #ff9f9f;
+    }}
+    .input-with-action {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }}
     .badge {{
       display: inline-flex;
       align-items: center;
@@ -1121,6 +1297,7 @@ def _html_page(title: str, body: str) -> bytes:
       font-size: 12px;
       color: var(--dim);
       white-space: nowrap;
+      text-decoration: none;
     }}
     .badge.ok {{ color: rgba(0,230,118,0.95); border-color: rgba(0,230,118,0.28); background: rgba(0,230,118,0.08); }}
     .badge.no {{ color: rgba(255,255,255,0.72); }}
@@ -1260,6 +1437,140 @@ def _html_page(title: str, body: str) -> bytes:
         }});
       }}
     }}
+
+    function autoPickFirstSpec() {{
+      const selected = (document.getElementById('selected')?.textContent || '').trim();
+      if (selected && selected !== '(none)') return;
+      const firstPick = document.querySelector('.list .row button.primary[onclick^="pick("]');
+      if (firstPick) firstPick.click();
+    }}
+
+    function setupSecretField(inputId) {{
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      el.addEventListener('focus', () => {{
+        if (el.dataset.masked === '1') {{
+          el.value = '';
+          el.dataset.masked = '0';
+          el.type = 'password';
+        }}
+      }});
+    }}
+
+    function toggleSecretMask(inputId) {{
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }}
+
+    function showFieldError(form, fieldName, message) {{
+      const err = form.querySelector('[data-error-for=\"' + fieldName + '\"]');
+      if (err) err.textContent = message || '';
+    }}
+
+    function isHexColor(value) {{
+      return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value || '');
+    }}
+
+    function validateSetupFormClient(form) {{
+      const errors = {{}};
+      const get = (name) => (form.elements.namedItem(name)?.value || '').trim();
+
+      const publicBase = get('public_base_url');
+      if (publicBase) {{
+        try {{
+          const u = new URL(publicBase);
+          if (!(u.protocol === 'http:' || u.protocol === 'https:')) {{
+            errors.public_base_url = 'Use http:// or https:// URL.';
+          }}
+        }} catch (_) {{
+          errors.public_base_url = 'Use valid URL.';
+        }}
+      }}
+
+      const bgKind = get('cardnews_bg_kind');
+      if (bgKind && bgKind !== 'solid' && bgKind !== 'gradient') {{
+        errors.cardnews_bg_kind = 'Choose solid or gradient.';
+      }}
+
+      const colorFields = [
+        'cardnews_accent_primary',
+        'cardnews_accent_secondary',
+        'cardnews_cover_fill',
+        'cardnews_panel_fill',
+        'cardnews_bg_solid',
+        'cardnews_bg_from',
+        'cardnews_bg_to',
+      ];
+      for (const k of colorFields) {{
+        const v = get(k);
+        if (v && !isHexColor(v)) errors[k] = 'Use HEX like #RRGGBB.';
+      }}
+
+      if (bgKind === 'gradient') {{
+        if (!get('cardnews_bg_from')) errors.cardnews_bg_from = 'Required for gradient.';
+        if (!get('cardnews_bg_to')) errors.cardnews_bg_to = 'Required for gradient.';
+      }}
+
+      for (const name of ['public_base_url', 'cardnews_bg_kind', ...colorFields]) {{
+        showFieldError(form, name, errors[name] || '');
+      }}
+      return errors;
+    }}
+
+    function setupConfigFormUX() {{
+      const form = document.querySelector('form[action=\"/api/config/update\"]');
+      if (!form) return;
+      const unsaved = document.getElementById('unsaved-indicator');
+      let dirty = false;
+      const markDirty = () => {{
+        dirty = true;
+        if (unsaved) unsaved.style.display = 'block';
+      }};
+      const clearDirty = () => {{
+        dirty = false;
+        if (unsaved) unsaved.style.display = 'none';
+      }};
+
+      form.addEventListener('input', () => {{
+        markDirty();
+        validateSetupFormClient(form);
+      }});
+      form.addEventListener('change', () => {{
+        markDirty();
+        validateSetupFormClient(form);
+      }});
+      form.addEventListener('submit', (e) => {{
+        const errs = validateSetupFormClient(form);
+        if (Object.keys(errs).length > 0) {{
+          e.preventDefault();
+          return;
+        }}
+        clearDirty();
+      }});
+
+      window.addEventListener('beforeunload', (e) => {{
+        if (!dirty) return;
+        e.preventDefault();
+        e.returnValue = '';
+      }});
+
+      document.querySelectorAll('a.guard-nav').forEach((a) => {{
+        a.addEventListener('click', (e) => {{
+          if (!dirty) return;
+          const ok = window.confirm('Unsaved changes will be lost. Move anyway?');
+          if (!ok) e.preventDefault();
+        }});
+      }});
+    }}
+
+    window.addEventListener('DOMContentLoaded', () => {{
+      autoPickFirstSpec();
+      setupSecretField('threads_app_secret');
+      setupSecretField('meta_app_secret');
+      setupSecretField('gemini_api_key');
+      setupConfigFormUX();
+    }});
   </script>
 </head>
 <body>
@@ -1278,78 +1589,14 @@ def _html_page(title: str, body: str) -> bytes:
   </header>
   <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.10);background:rgba(0,0,0,0.18)">
     {badge_row}
+    {badge_help}
     {hint_html}
     {existing_html}
     {star_html}
   </div>
-  <div class="wrap">
-    <div class="card">
-      <h2>Instagram specs</h2>
-      <div class="list">
-        {body}
-      </div>
-    </div>
-    <div class="card">
-      <h2>Preview</h2>
-      <div class="preview">
-        <div class="hint">Selected: <span id="selected">(none)</span></div>
-        <div class="hint">Project: <span id="selected-project"></span></div>
-        <div class="hint">Policy: <span id="policy-mode">DRAFT_ONLY</span></div>
-        <div class="hint" id="policy-disclaimer"></div>
-        <div class="grid2">
-          <div class="field">
-            <label>Instagram generate style</label>
-            <select id="ig-style">
-              <option value="bernays" selected>bernays</option>
-              <option value="comeback">comeback</option>
-              <option value="plain">plain</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Spec format</label>
-            <select id="ig-format">
-              <option value="json" selected>json</option>
-              <option value="yaml">yaml</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px">
-          <button id="render-btn" class="primary" disabled>Render</button>
-          <button id="gen-btn" disabled>Generate + Render</button>
-        </div>
-        <div id="thumbs" class="thumbs"><div class="hint">Pick a spec.</div></div>
-        <div class="card" style="border-radius:14px">
-          <h2>Publish</h2>
-          <div class="list" style="padding-top:0">
-          <div class="hint">Threads (text)</div>
-            <div class="field" style="margin-top:8px">
-              <label>Threads draft style</label>
-              <select id="threads-style">
-                <option value="bernays" selected>bernays</option>
-                <option value="comeback">comeback</option>
-                <option value="plain">plain</option>
-              </select>
-            </div>
-            <textarea id="threads-text" style="width:100%;min-height:80px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;padding:10px;resize:vertical"></textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-              <button onclick="generateThreadsDraft()">Generate draft</button>
-              <button onclick="publishThreads(false)">Threads dry-run</button>
-              <button class="primary" onclick="publishThreads(true)">Threads publish</button>
-            </div>
-            <div style="height:12px"></div>
-            <div class="hint">Instagram (carousel)</div>
-            <div class="hint">Spec: <span id="ig-spec"></span></div>
-            <input id="ig-caption" placeholder="caption" style="width:100%;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;padding:10px" />
-            <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-              <button onclick="publishInstagram(false)">IG dry-run</button>
-              <button class="primary" onclick="publishInstagram(true)">IG publish</button>
-            </div>
-            <div class="hint" style="margin-top:8px">Requires: connect tokens in <a href="/connect">/connect</a>, set <code>ig_user_id</code>, and set a public base URL (ENV <code>JUSTSELL_PUBLIC_BASE_URL</code> or config <code>settings.public_base_url</code>).</div>
-          </div>
-        </div>
-      </div>
-      <pre id="log">(logs)</pre>
-    </div>
+  <div class="{wrap_class}">
+    {left_block}
+    {preview_block}
   </div>
 </body>
 </html>""".encode("utf-8")
@@ -1396,6 +1643,20 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     card_fonts = {}
   selected_template = str(cardnews.get("template", "")).strip()
   templates = _available_cardnews_templates()
+  saved_notice = bool(qs and str((qs.get("saved", [""])[0] or "")).strip() == "1")
+  tab_raw = str((qs.get("tab", ["setup"])[0] or "setup")).strip().lower() if qs else "setup"
+  allowed_tabs = {"setup", "project", "threads", "instagram"}
+  selected_tab = tab_raw if tab_raw in allowed_tabs else "setup"
+  errors_map: dict[str, str] = {}
+  if qs:
+    errors_raw = str((qs.get("errors", [""])[0] or "")).strip()
+    if errors_raw:
+      try:
+        parsed_errors = json.loads(unquote(errors_raw))
+        if isinstance(parsed_errors, dict):
+          errors_map = {str(k): str(v) for k, v in parsed_errors.items() if str(v).strip()}
+      except Exception:
+        errors_map = {}
 
   def masked(key: str) -> str:
     v = str(settings.get(key, "")).strip()
@@ -1405,6 +1666,9 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     if ("secret" in lk) or ("api_key" in lk) or lk.endswith("_key"):
       return "(set)"
     return v
+
+  def masked_secret_value(key: str) -> str:
+    return "********" if masked(key) == "(set)" else ""
 
   def theme_val(k: str, fallback: str = "") -> str:
     return str(card_theme.get(k, fallback)).strip()
@@ -1422,6 +1686,31 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
       for p in templates
     ]
   )
+  bg_kind_value = theme_val("bg_kind", "solid") or "solid"
+  font_name_options = "\n".join(
+    [
+      "<option value='Pretendard Bold'></option>",
+      "<option value='Pretendard Regular'></option>",
+      "<option value='GDmarket Bold'></option>",
+      "<option value='Noto Sans KR Bold'></option>",
+      "<option value='Noto Sans KR Regular'></option>",
+    ]
+  )
+  def field_error(name: str) -> str:
+    msg = str(errors_map.get(name, "")).strip()
+    return f"<div class='field-error' data-error-for='{name}'>{html.escape(msg)}</div>"
+
+  tab_buttons = "\n".join(
+    [
+      f"<a class='btn-link guard-nav {'primary' if selected_tab == t else ''}' href='/connect?tab={t}#{t}'>{label}</a>"
+      for t, label in [
+        ("setup", "Setup"),
+        ("project", "Project"),
+        ("threads", "Threads"),
+        ("instagram", "Instagram"),
+      ]
+    ]
+  )
 
   projects = _list_projects()
   project_rows = []
@@ -1429,7 +1718,7 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     project_rows.append(
       "<div class='row'>"
       f"<div class='meta'><div class='name'>{slug}</div><div class='sub'>{PROJECTS_DIR_NAME}/{slug}</div></div>"
-      f"<div style='display:flex;gap:10px;flex-wrap:wrap'><a href='/?project={PROJECTS_DIR_NAME}/{slug}'><button>Open</button></a></div>"
+      f"<div style='display:flex;gap:10px;flex-wrap:wrap'><a class='btn-link' href='/?project={PROJECTS_DIR_NAME}/{slug}'>Open</a></div>"
       "</div>"
     )
   project_list_html = "<div class='divider hint'>Projects</div>" + ("\n".join(project_rows) if project_rows else "<div class='hint'>(none)</div>")
@@ -1455,7 +1744,7 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
               "<div class='row'>"
               f"<div class='meta'><div class='name'>{page_name or 'Instagram account'}</div>"
               f"<div class='sub'>ig_user_id: {ig_id}</div></div>"
-              f"<div style='display:flex;gap:10px'><a href='/api/ig/set_user?ig_user_id={_urlencode(ig_id)}'><button class='primary'>Select</button></a></div>"
+              f"<div style='display:flex;gap:10px'><a class='btn-link primary' href='/api/ig/set_user?ig_user_id={_urlencode(ig_id)}'>Select</a></div>"
               "</div>"
             )
         if rows:
@@ -1468,15 +1757,34 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
       ig_accounts_html = "<div class='divider hint'>Discovered Instagram accounts</div><div class='hint'>Connect Instagram first.</div>"
 
   body = f"""
-  <div class="card" style="padding:14px">
+  <div class="card" style="padding:14px;margin-bottom:14px">
+    <h2 style="padding:0;margin:0 0 8px 0">Sections</h2>
+    <div class="hint">One section per view. Choose where to work.</div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      {tab_buttons}
+    </div>
+  </div>
+
+  <div id="setup" class="card" style="padding:14px;display:{"block" if selected_tab == "setup" else "none"}">
     <h2 style="padding:0;margin:0 0 8px 0">Setup</h2>
+    {"<div style='margin:8px 0 10px;padding:10px 12px;border:1px solid rgba(0,230,118,0.35);border-radius:10px;background:rgba(0,230,118,0.08);font-size:12px;color:rgba(0,230,118,0.95);font-weight:700'>Saved. Setup values were updated.</div>" if saved_notice else ""}
     <div class="hint">Config: <code>~/.claude/.js/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
     <div class="hint">Custom templates: put YAML/JSON files in <code>~/.claude/.js/templates/instagram/</code> and they appear in the dropdown.</div>
     <form method="POST" action="/api/config/update" style="margin-top:12px">
+      <div class="hint">Edit fields, then click <b>Save setup</b>. Nothing is applied until save.</div>
+      <div id="unsaved-indicator" class="hint" style="display:none;margin-top:6px;color:#ffcc8a">Unsaved changes</div>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" type="submit">Save setup</button>
+        <a class="btn-link" href="/api/config">View config (redacted)</a>
+      </div>
+
+      <div class="section-title">1. Runtime + Template</div>
       <div class="grid2">
         <div class="field">
-          <label>public_base_url (for Instagram publishing)</label>
+          <label>public_base_url (required for Instagram publish)</label>
           <input type="text" name="public_base_url" value="{masked("public_base_url") if masked("public_base_url") != "(unset)" else ""}" placeholder="https://xxxxx.ngrok.app" />
+          <div class="field-help">Public URL where exported images are reachable.</div>
+          {field_error("public_base_url")}
         </div>
         <div class="field">
           <label>Instagram cardnews template</label>
@@ -1484,52 +1792,99 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
             <option value="">(keep current)</option>
             {template_opts}
           </select>
+          <div class="field-help">Selector field. Pick one template file.</div>
         </div>
       </div>
 
-      <div class="divider hint">Key colors (saved to config; renderer also supports ENV overrides)</div>
+      <div class="section-title">2. Card Colors</div>
+      <div class="hint">Saved to config. Renderer ENV can still override.</div>
       <div class="grid3">
-        <div class="field"><label>accent_primary</label><input type="text" name="cardnews_accent_primary" value="{theme_val("accent_primary")}" placeholder="#00E676" /></div>
-        <div class="field"><label>accent_secondary</label><input type="text" name="cardnews_accent_secondary" value="{theme_val("accent_secondary")}" placeholder="#111111" /></div>
-        <div class="field"><label>cover_fill</label><input type="text" name="cardnews_cover_fill" value="{theme_val("cover_fill")}" placeholder="#00E676" /></div>
+        <div class="field"><label>accent_primary</label><input type="text" name="cardnews_accent_primary" value="{theme_val("accent_primary")}" placeholder="#00E676" />{field_error("cardnews_accent_primary")}</div>
+        <div class="field"><label>accent_secondary</label><input type="text" name="cardnews_accent_secondary" value="{theme_val("accent_secondary")}" placeholder="#111111" />{field_error("cardnews_accent_secondary")}</div>
+        <div class="field"><label>cover_fill</label><input type="text" name="cardnews_cover_fill" value="{theme_val("cover_fill")}" placeholder="#00E676" />{field_error("cardnews_cover_fill")}</div>
       </div>
       <div class="grid3">
-        <div class="field"><label>panel_fill</label><input type="text" name="cardnews_panel_fill" value="{theme_val("panel_fill")}" placeholder="#141414" /></div>
-        <div class="field"><label>bg_kind</label><input type="text" name="cardnews_bg_kind" value="{theme_val("bg_kind")}" placeholder="solid|gradient" /></div>
-        <div class="field"><label>bg_solid</label><input type="text" name="cardnews_bg_solid" value="{theme_val("bg_solid")}" placeholder="#FFFFFF" /></div>
+        <div class="field"><label>panel_fill</label><input type="text" name="cardnews_panel_fill" value="{theme_val("panel_fill")}" placeholder="#141414" />{field_error("cardnews_panel_fill")}</div>
+        <div class="field">
+          <label>bg_kind</label>
+          <select name="cardnews_bg_kind">
+            <option value="solid" {"selected" if bg_kind_value == "solid" else ""}>solid</option>
+            <option value="gradient" {"selected" if bg_kind_value == "gradient" else ""}>gradient</option>
+          </select>
+          <div class="field-help">Selector field. Do not type this manually.</div>
+          {field_error("cardnews_bg_kind")}
+        </div>
+        <div class="field"><label>bg_solid</label><input type="text" name="cardnews_bg_solid" value="{theme_val("bg_solid")}" placeholder="#FFFFFF" />{field_error("cardnews_bg_solid")}</div>
       </div>
       <div class="grid2">
-        <div class="field"><label>bg_from</label><input type="text" name="cardnews_bg_from" value="{theme_val("bg_from")}" placeholder="#050505" /></div>
-        <div class="field"><label>bg_to</label><input type="text" name="cardnews_bg_to" value="{theme_val("bg_to")}" placeholder="#0B0F19" /></div>
+        <div class="field"><label>bg_from</label><input type="text" name="cardnews_bg_from" value="{theme_val("bg_from")}" placeholder="#050505" />{field_error("cardnews_bg_from")}</div>
+        <div class="field"><label>bg_to</label><input type="text" name="cardnews_bg_to" value="{theme_val("bg_to")}" placeholder="#0B0F19" />{field_error("cardnews_bg_to")}</div>
       </div>
 
-      <div class="divider hint">Fonts (name-based lookup; keep empty to use template)</div>
+      <div class="section-title">3. Fonts</div>
+      <div class="hint">Text input with autocomplete suggestions. You can type custom font names.</div>
+      <datalist id="font-name-options">
+        {font_name_options}
+      </datalist>
       <div class="grid3">
-        <div class="field"><label>title_name</label><input type="text" name="cardnews_title_name" value="{font_val("title_name")}" placeholder="GDmarket Bold" /></div>
-        <div class="field"><label>body_name</label><input type="text" name="cardnews_body_name" value="{font_val("body_name")}" placeholder="Pretendard Regular" /></div>
-        <div class="field"><label>footer_name</label><input type="text" name="cardnews_footer_name" value="{font_val("footer_name")}" placeholder="Pretendard Regular" /></div>
+        <div class="field">
+          <label>title_name</label>
+          <input type="text" list="font-name-options" name="cardnews_title_name" value="{font_val("title_name")}" placeholder="GDmarket Bold" />
+          <div class="field-help">Input field (custom value allowed).</div>
+        </div>
+        <div class="field">
+          <label>body_name</label>
+          <input type="text" list="font-name-options" name="cardnews_body_name" value="{font_val("body_name")}" placeholder="Pretendard Regular" />
+          <div class="field-help">Input field (custom value allowed).</div>
+        </div>
+        <div class="field">
+          <label>footer_name</label>
+          <input type="text" list="font-name-options" name="cardnews_footer_name" value="{font_val("footer_name")}" placeholder="Pretendard Regular" />
+          <div class="field-help">Input field (custom value allowed).</div>
+        </div>
       </div>
 
-      <div class="divider hint">OAuth app settings (store locally; values are masked on this page)</div>
+      <div class="section-title">4. OAuth App Settings</div>
+      <div class="hint">Secret fields show masked placeholder when already configured.</div>
       <div class="grid2">
         <div class="field"><label>threads_app_id</label><input type="text" name="threads_app_id" value="{masked("threads_app_id") if masked("threads_app_id") != "(unset)" else ""}" /></div>
-        <div class="field"><label>threads_app_secret</label><input type="password" name="threads_app_secret" value="" placeholder="{masked("threads_app_secret")}" /></div>
+        <div class="field">
+          <label>threads_app_secret</label>
+          <div class="input-with-action">
+            <input id="threads_app_secret" type="password" name="threads_app_secret" data-masked="{"1" if masked_secret_value("threads_app_secret") else "0"}" value="{masked_secret_value("threads_app_secret")}" placeholder="(unset)" />
+            <button type="button" onclick="toggleSecretMask('threads_app_secret')" aria-label="Toggle threads app secret visibility">View</button>
+          </div>
+        </div>
       </div>
       <div class="grid2">
         <div class="field"><label>meta_app_id</label><input type="text" name="meta_app_id" value="{masked("meta_app_id") if masked("meta_app_id") != "(unset)" else ""}" /></div>
-        <div class="field"><label>meta_app_secret</label><input type="password" name="meta_app_secret" value="" placeholder="{masked("meta_app_secret")}" /></div>
+        <div class="field">
+          <label>meta_app_secret</label>
+          <div class="input-with-action">
+            <input id="meta_app_secret" type="password" name="meta_app_secret" data-masked="{"1" if masked_secret_value("meta_app_secret") else "0"}" value="{masked_secret_value("meta_app_secret")}" placeholder="(unset)" />
+            <button type="button" onclick="toggleSecretMask('meta_app_secret')" aria-label="Toggle meta app secret visibility">View</button>
+          </div>
+        </div>
       </div>
-      <div class="field"><label>graph_api_version</label><input type="text" name="graph_api_version" value="{masked("graph_api_version") if masked("graph_api_version") != "(unset)" else ""}" placeholder="v20.0" /></div>
+      <div class="field">
+        <label>graph_api_version</label>
+        <input type="text" name="graph_api_version" value="{masked("graph_api_version") if masked("graph_api_version") != "(unset)" else ""}" placeholder="v20.0" />
+      </div>
 
-      <div class="divider hint">Gemini (Nanobanana) (optional; store locally; masked)</div>
+      <div class="section-title">5. Gemini (Optional)</div>
       <div class="grid2">
-        <div class="field"><label>gemini_api_key</label><input type="password" name="gemini_api_key" value="" placeholder="{masked("gemini_api_key")}" /></div>
+        <div class="field">
+          <label>gemini_api_key</label>
+          <div class="input-with-action">
+            <input id="gemini_api_key" type="password" name="gemini_api_key" data-masked="{"1" if masked_secret_value("gemini_api_key") else "0"}" value="{masked_secret_value("gemini_api_key")}" placeholder="(unset)" />
+            <button type="button" onclick="toggleSecretMask('gemini_api_key')" aria-label="Toggle gemini api key visibility">View</button>
+          </div>
+        </div>
         <div class="field"><label>gemini_monthly_budget_usd</label><input type="number" step="0.01" min="0" name="gemini_monthly_budget_usd" value="{str(settings.get("gemini_monthly_budget_usd", "")).strip()}" placeholder="0" /></div>
       </div>
 
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="primary" type="submit">Save</button>
-        <a class="hint" href="/api/config"><button type="button">View config (redacted)</button></a>
+        <button class="primary" type="submit">Save setup</button>
       </div>
     </form>
 
@@ -1541,7 +1896,7 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     </div>
   </div>
 
-  <div class="card" style="padding:14px;margin-top:14px">
+  <div id="project" class="card" style="padding:14px;margin-top:14px;display:{"block" if selected_tab == "project" else "none"}">
     <h2 style="padding:0;margin:0 0 8px 0">Project</h2>
     <div class="hint">Projects directory: <code>{str(PROJECTS_DIR)}</code></div>
     <div class="hint">Template source (plugin): <code>{str(REPO_ROOT / "projects" / "_template")}</code></div>
@@ -1559,14 +1914,14 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     {project_list_html}
   </div>
 
-  <div class="card" style="padding:14px">
+  <div id="threads" class="card" style="padding:14px;display:{"block" if selected_tab == "threads" else "none"}">
     <h2 style="padding:0;margin:0 0 8px 0">Threads</h2>
     <div class="hint">status: {"connected" if t.get("access_token") else "not connected"}</div>
     <div class="hint">user_id: {t.get("user_id","(none)")}</div>
     <div class="hint">expires_at: {fmt_exp(t.get("expires_at"))}</div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-      <a href="/oauth/threads/start"><button class="primary">Connect Threads (OAuth)</button></a>
-      <a href="/api/threads/refresh"><button>Refresh token</button></a>
+      <a class="btn-link primary" href="/oauth/threads/start">Connect Threads (OAuth)</a>
+      <a class="btn-link" href="/api/threads/refresh">Refresh token</a>
     </div>
     <pre style="margin-top:12px">ENV required:
 JUSTSELL_THREADS_APP_ID
@@ -1576,14 +1931,14 @@ JUSTSELL_THREADS_SCOPES (default {threads_cfg.get("scope","")})
     </pre>
   </div>
 
-  <div class="card" style="padding:14px;margin-top:14px">
+  <div id="instagram" class="card" style="padding:14px;margin-top:14px;display:{"block" if selected_tab == "instagram" else "none"}">
     <h2 style="padding:0;margin:0 0 8px 0">Instagram (Graph)</h2>
     <div class="hint">status: {"connected" if ig.get("access_token") else "not connected"}</div>
     <div class="hint">expires_at: {fmt_exp(ig.get("expires_at"))}</div>
     <div class="hint">ig_user_id: {ig.get("ig_user_id","(unset)")}</div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-      <a href="/oauth/ig/start"><button class="primary">Connect Instagram (OAuth)</button></a>
-      <a href="/connect?ig_discover=1"><button>Discover accounts</button></a>
+      <a class="btn-link primary" href="/oauth/ig/start">Connect Instagram (OAuth)</a>
+      <a class="btn-link guard-nav" href="/connect?tab=instagram&ig_discover=1#instagram">Discover accounts</a>
     </div>
     {ig_accounts_html}
     <div class="hint" style="margin-top:10px">Publishing carousels requires a public URL. Set a tunnel base URL (ENV <code>JUSTSELL_PUBLIC_BASE_URL</code> or Setup form <code>public_base_url</code>).</div>
@@ -1633,7 +1988,7 @@ JUSTSELL_GRAPH_API_VERSION (default v20.0)
     }}
   </script>
   """.strip()
-  return _html_page("connect", body)
+  return _html_page("connect", body, include_preview=False, left_title="Settings")
 
 
 def _events_page() -> bytes:
@@ -1838,7 +2193,7 @@ class Handler(BaseHTTPRequestHandler):
 
     if path == "/api/config":
       cfg = _read_config()
-      out = {"version": cfg.get("version", 1), "settings": cfg.get("settings", {}), "meta": cfg.get("meta", {}), "updated_at": cfg.get("updated_at", "")}
+      out = {"version": cfg.get("version", 1), "settings": _config_settings(), "meta": cfg.get("meta", {}), "updated_at": cfg.get("updated_at", "")}
       self._send_json(200, _redact(out) if isinstance(out, dict) else {"error": "invalid"})
       return
 
@@ -1958,7 +2313,7 @@ class Handler(BaseHTTPRequestHandler):
           expires_at = datetime.fromtimestamp(time.time() + expires_in, tz=timezone.utc).isoformat()
         _set_secret(["threads"], {"access_token": access_token, "user_id": user_id, "expires_at": expires_at})
         self.send_response(302)
-        self.send_header("Location", "/connect")
+        self.send_header("Location", "/connect?tab=threads#threads")
         self.end_headers()
         return
       except Exception as e:
@@ -2023,7 +2378,7 @@ class Handler(BaseHTTPRequestHandler):
           return
         _set_secret(["instagram"], {"access_token": access_token, "expires_at": expires_at})
         self.send_response(302)
-        self.send_header("Location", "/connect")
+        self.send_header("Location", "/connect?tab=instagram#instagram")
         self.end_headers()
         return
       except Exception as e:
@@ -2201,7 +2556,9 @@ class Handler(BaseHTTPRequestHandler):
         return
       sec["ig_user_id"] = ig_user_id
       _set_secret(["instagram"], sec)
-      self._send_json(200, {"ok": True})
+      self.send_response(302)
+      self.send_header("Location", "/connect?tab=instagram#instagram")
+      self.end_headers()
       return
 
     if path == "/api/ig/publish_carousel":
@@ -2320,7 +2677,16 @@ class Handler(BaseHTTPRequestHandler):
         v = data.get(k, "")
         return str(v or "").strip()
 
+      validation_errors = validate_setup_form({str(k): str(v) for k, v in data.items()})
+      if validation_errors:
+        encoded = _urlencode(json.dumps(validation_errors, ensure_ascii=False))
+        self.send_response(302)
+        self.send_header("Location", f"/connect?tab=setup&errors={encoded}#setup")
+        self.end_headers()
+        return
+
       updates: dict[str, str] = {}
+      secret_keys = {"threads_app_secret", "meta_app_secret", "gemini_api_key"}
       for k in [
         "public_base_url",
         "threads_app_id",
@@ -2331,7 +2697,7 @@ class Handler(BaseHTTPRequestHandler):
         "gemini_api_key",
       ]:
         v = get_str(k)
-        if v:
+        if v and not (k in secret_keys and v == "********"):
           updates[k] = v
 
       budget_raw = get_str("gemini_monthly_budget_usd")
@@ -2403,7 +2769,7 @@ class Handler(BaseHTTPRequestHandler):
         _settings_set(["cardnews", "fonts"], existing_f)
 
       self.send_response(302)
-      self.send_header("Location", "/connect")
+      self.send_header("Location", "/connect?tab=setup&saved=1#setup")
       self.end_headers()
       return
 
@@ -2432,14 +2798,14 @@ class Handler(BaseHTTPRequestHandler):
         return
       _append_event("project_create", {"project": f"{PROJECTS_DIR_NAME}/{slug}"})
       self.send_response(302)
-      self.send_header("Location", "/connect")
+      self.send_header("Location", "/connect?tab=project#project")
       self.end_headers()
       return
 
     if path == "/api/meta/star_dismiss":
       _meta_set("star_banner_dismissed_at", _now_iso())
       self.send_response(302)
-      self.send_header("Location", "/connect")
+      self.send_header("Location", "/connect?tab=setup#setup")
       self.end_headers()
       return
 

@@ -8,21 +8,26 @@
       "kind": "solid",
       "color": "#FFFFFF"
     },
-    "accent_primary": "#FF6A2A",
-    "accent_secondary": "#111111",
+    "accent_primary": "#2563EB",
+    "accent_secondary": "#0F172A",
     "panel": {
-      "fill": "#141414",
-      "border": "rgba(255,255,255,0.0)",
+      "fill": "#FFFFFF",
+      "border": "rgba(15,23,42,0.14)",
       "radius": 72
     },
+    "text": {
+      "title": "#0F172A",
+      "body": "#0F172A",
+      "dim": "#475569"
+    },
     "cover": {
-      "fill": "#FF6A2A",
-      "text": "#111111",
-      "dim": "rgba(0,0,0,0.65)"
+      "fill": "#F3F8FF",
+      "text": "#0F172A",
+      "dim": "rgba(15,23,42,0.68)"
     },
     "pills": {
-      "fill": "rgba(255,255,255,0.08)",
-      "border": "rgba(255,255,255,0.12)",
+      "fill": "rgba(15,23,42,0.04)",
+      "border": "rgba(15,23,42,0.14)",
       "radius": 28,
       "max_width_ratio": 0.92
     },
@@ -97,4 +102,3 @@
     }
   ]
 }
-

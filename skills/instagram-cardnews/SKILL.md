@@ -1,32 +1,38 @@
 ---
 name: instagram-cardnews
-description: Generate Instagram cardnews spec and render PNGs from projects/<project>/SALES_INFO.md
+description: Production-grade Instagram cardnews orchestration (zero-touch default)
 ---
 
 # instagram-cardnews
 
-`SALES_INFO.md`를 기준으로 카드뉴스 스펙(YAML)을 만들고, PNG를 렌더합니다.
+[CARDNEWS MODE ACTIVATED]
 
-## Input
-- `projects/<project>/SALES_INFO.md`
+## Mode
+- Default: zero-touch auto-run
+- Strict: `JUSTSELL_STRICT_PIPELINE=1`
 
-## Output
-- spec: `projects/<project>/channels/instagram/cardnews/<yyyymmdd-hhmm>.yaml`
-- images: `projects/<project>/channels/instagram/exports/<spec-stem>-*.png`
+## Parallel Roles
+- `marketing-director`
+- `cardnews-copy-chief`
+- `cardnews-designer`
+- `cardnews-quality-auditor`
+
+## Inputs
+- `~/.claude/.js/projects/<project>/SALES_INFO.md`
+
+## Required Artifacts
+- `_agent_settings.md`
+- `_parallel_roles.md`
+- `_creative_brief.md`
+- `_strategy_lock.md`
 
 ## Commands
 ```bash
-python3 scripts/generate_drafts.py instagram-cardnews --project projects/<project> --style bernays
-python3 scripts/render_cardnews.py \
-  --spec projects/<project>/channels/instagram/cardnews/<spec>.yaml \
-  --out  projects/<project>/channels/instagram/exports
-```
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
 
-### Template 기반으로 생성(권장)
-```bash
-python3 scripts/generate_drafts.py instagram-cardnews \
-  --project projects/<project> \
-  --style bernays \
-  --format yaml \
-  --template channels/instagram/templates/cardnews.boc_like.yaml
+python3 scripts/generate_drafts.py instagram-cardnews --project "$PROJECT" --style bernays --format yaml
+LATEST_SPEC="$(ls -1t "$PROJECT/channels/instagram/cardnews/"*.yaml "$PROJECT/channels/instagram/cardnews/"*.json 2>/dev/null | head -n 1)"
+python3 scripts/validate_cardnews_spec.py --spec "$LATEST_SPEC"
+python3 scripts/render_cardnews.py --spec "$LATEST_SPEC" --out "$PROJECT/channels/instagram/exports"
 ```

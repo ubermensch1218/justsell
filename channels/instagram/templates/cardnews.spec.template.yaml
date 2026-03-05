@@ -9,19 +9,18 @@ canvas:
 
 theme:
   background:
-    kind: gradient
-    from: "#050505"
-    to: "#0B0F19"
-  accent_primary: "#FF3B30"
-  accent_secondary: "#5856D6"
+    kind: solid
+    color: "#FFFFFF"
+  accent_primary: "#2563EB"
+  accent_secondary: "#0F172A"
   card:
-    fill: "rgba(255,255,255,0.03)"
-    border: "rgba(255,255,255,0.08)"
+    fill: "rgba(255,255,255,0.95)"
+    border: "rgba(15,23,42,0.14)"
     radius: 40
   text:
-    title: "#FFFFFF"
-    body: "#FFFFFF"
-    dim: "#A0A0A0"
+    title: "#0F172A"
+    body: "#0F172A"
+    dim: "#475569"
 
 brand:
   name: "{BRAND_NAME}"

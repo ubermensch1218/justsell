@@ -1,30 +1,23 @@
 ---
-description: JustSell entrypoint. Usage: /justsell:js init | /justsell:js console | /justsell:js cardnews | /justsell:js remotion
+description: JustSell gateway command. Usage: /justsell:js init | console | cardnews | remotion
 ---
+
+[JUSTSELL GATEWAY ACTIVATED]
 
 $ARGUMENTS
 
-You are operating the `justsell` plugin.
+Operate the `justsell` plugin with zero-friction defaults.
 
-Non-negotiable rules:
-- Local-first: store all state under `~/.claude/.js/` (respect `CLAUDE_CONFIG_DIR`).
-- Explicit publishing: default to dry-run unless the user explicitly confirms.
-- No hardcoded URLs: use env vars or `config.json`.
-- No emojis.
+Core rules:
+- Local-first under `~/.claude/.js/` (`CLAUDE_CONFIG_DIR` respected)
+- No hardcoded URLs
+- Publish is dry-run unless explicitly confirmed
 
-Interpret `$ARGUMENTS` as a subcommand:
-
-Execution rule:
-- When the user asks for `init`, `console`, `cardnews`, or `remotion`, run the bash commands (do not only describe them).
-
-1) `init`
-- Goal: wizard-like local setup that writes config under `~/.claude/.js/` and then completes OAuth in the console.
-- Action:
-  0) Resolve the plugin root (never assume the user's current repo contains `scripts/`):
-  ```bash
-  JS_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
-  if [ -z "$JS_ROOT" ]; then
-    JS_ROOT="$(python3 - <<'PY'
+Resolve plugin root first:
+```bash
+JS_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$JS_ROOT" ]; then
+  JS_ROOT="$(python3 - <<'PY'
 import glob, os
 claude=os.environ.get('CLAUDE_CONFIG_DIR','~/.claude')
 base=os.path.expanduser(os.path.join(claude,'plugins','cache'))
@@ -32,69 +25,55 @@ cands=sorted(glob.glob(os.path.join(base,'*','justsell','*')))
 print(cands[-1] if cands else '')
 PY
 )"
-  fi
-  test -n "$JS_ROOT"
-  ```
+fi
+test -n "$JS_ROOT"
+```
 
-  1) Start the dashboard in background (no shell `&` tricks):
-  ```bash
-  "$JS_ROOT/bin/js" start --mode config
-  ```
-  - Note: Claude Code runs Bash without an interactive TTY, so the terminal wizard is skipped and you should use the `/connect` Setup section.
+Subcommands:
 
-  2) In the dashboard, open `http://127.0.0.1:5678/connect` and complete OAuth:
-  - Threads: click "Connect Threads (OAuth)"
-  - Instagram: click "Connect Instagram (OAuth)"
-  - Instagram account select: click "Discover accounts" then "Select" one `ig_user_id`
-  - Optional: adjust template/colors/fonts in the Setup section if needed later
-
-  3) Projects persist under `~/.claude/.js/projects/` (respects `CLAUDE_CONFIG_DIR` and `JUSTSELL_PROJECTS_DIR`).
+1) `init`
+```bash
+"$JS_ROOT/bin/js" start --mode config
+```
 
 2) `console`
-- Start JustSellConsole at `http://127.0.0.1:5678/`:
 ```bash
 "$JS_ROOT/bin/js" start --mode console
 ```
 
 3) `cardnews`
-- Generate + render Instagram cardnews for a project:
 ```bash
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-PROJECT="$CLAUDE_DIR/.js/projects/<project>"
-"$JS_ROOT/bin/js" console
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+"$JS_ROOT/bin/js" start --mode console
 python3 "$JS_ROOT/scripts/generate_drafts.py" instagram-cardnews --project "$PROJECT" --style bernays --format yaml
-python3 "$JS_ROOT/scripts/render_cardnews.py" --spec "$PROJECT/channels/instagram/cardnews/<spec>.yaml" --out "$PROJECT/channels/instagram/exports"
+LATEST_SPEC="$(ls -1t "$PROJECT/channels/instagram/cardnews/"*.yaml "$PROJECT/channels/instagram/cardnews/"*.json 2>/dev/null | head -n 1)"
+test -n "$LATEST_SPEC"
+python3 "$JS_ROOT/scripts/validate_cardnews_spec.py" --spec "$LATEST_SPEC"
+python3 "$JS_ROOT/scripts/render_cardnews.py" --spec "$LATEST_SPEC" --out "$PROJECT/channels/instagram/exports"
 ```
 
-4) `oauth`
-- Go to `http://127.0.0.1:5678/connect` and connect:
-  - Threads OAuth
-  - Instagram OAuth
-  - Discover accounts and select exactly one `ig_user_id`
-
-5) `comeback`
-- Generate a comeback draft (Threads) for a project, then review in console before publishing:
-  - Start console: `"$JS_ROOT/bin/js" console`
-  - Pick any spec of the project, then in Publish panel click "Generate draft" with style `comeback`.
-
-6) `remotion`
-- Generate + render Remotion promo video for a project:
+4) `remotion`
 ```bash
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-PROJECT="$CLAUDE_DIR/.js/projects/<project>"
-"$JS_ROOT/bin/js" console
-python3 "$JS_ROOT/scripts/generate_remotion_spec.py" \
-  --project "$PROJECT" \
-  --style bernays \
-  --video-seconds 22 \
-  --video-format auto \
-  --channel-profile instagram-reel \
-  --device-profile mobile
-python3 "$JS_ROOT/scripts/render_remotion_video.py" \
-  --spec "$PROJECT/channels/instagram/remotion/<spec>.json" \
-  --out "$PROJECT/channels/instagram/videos"
+PROJECT="${JUSTSELL_PROJECTS_DIR:-$CLAUDE_DIR/.js/projects}/<project>"
+FLOW_STEPS="$PROJECT/channels/instagram/remotion/_flow_steps.json"
+FLOW_MANIFEST="$PROJECT/channels/instagram/remotion/_flow_manifest.json"
+"$JS_ROOT/bin/js" start --mode console
+FLOW_VIDEO=""
+FLOW_ARG=()
+if [ ! -f "$FLOW_STEPS" ]; then
+  echo "Missing flow steps: $FLOW_STEPS"
+  echo "Copy template: $JS_ROOT/templates/briefs/remotion_flow_steps.example.json"
+  exit 1
+fi
+FLOW_VIDEO="$(python3 "$JS_ROOT/scripts/record_flow.py" --project "$PROJECT" --steps "$FLOW_STEPS" --manifest-out "$FLOW_MANIFEST")"
+test -n "$FLOW_VIDEO"
+FLOW_ARG=(--flow-video "$FLOW_VIDEO")
+python3 "$JS_ROOT/scripts/generate_remotion_spec.py" --project "$PROJECT" --style bernays --video-seconds 22 --video-format square --channel-profile instagram-reel --device-profile mobile --flow-manifest "$FLOW_MANIFEST" "${FLOW_ARG[@]}"
+LATEST_SPEC="$(ls -1t "$PROJECT/channels/instagram/remotion/"*.json 2>/dev/null | head -n 1)"
+test -n "$LATEST_SPEC"
+python3 "$JS_ROOT/scripts/render_remotion_video.py" --spec "$LATEST_SPEC" --out "$PROJECT/channels/instagram/videos"
 ```
 
-If `$ARGUMENTS` is empty or unknown:
-- Ask the user which one: `init`, `console`, `cardnews`, or `remotion` (and which project slug for cardnews/remotion).
-- If the user seems lost or wants step-by-step guidance, recommend `/justsell:onboard`.
+If `$ARGUMENTS` is missing, run `console` by default.
