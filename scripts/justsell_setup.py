@@ -10,6 +10,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+DEFAULT_CLAUDE_THEME: dict[str, str] = {
+  "accent_primary": "#2563EB",
+  "accent_secondary": "#0F172A",
+  "cover_fill": "#F3F8FF",
+  "panel_fill": "#FFFFFF",
+  "bg_kind": "solid",
+  "bg_solid": "#FFFFFF",
+  "bg_from": "",
+  "bg_to": "",
+}
+
+LEGACY_CLAUDE_THEME: dict[str, str] = {
+  "accent_primary": "#FF6A2A",
+  "accent_secondary": "#111111",
+  "cover_fill": "#FF6A2A",
+  "panel_fill": "#141414",
+  "bg_kind": "solid",
+  "bg_solid": "#FFFFFF",
+  "bg_from": "",
+  "bg_to": "",
+}
+
 
 def _now_iso() -> str:
   return datetime.now(timezone.utc).isoformat()
@@ -62,6 +84,37 @@ def _merge_settings(cfg: dict[str, Any], updates: dict[str, Any]) -> dict[str, A
   cfg["meta"]["setupCompletedAt"] = _now_iso()
   cfg["meta"]["setupBy"] = "justsell_setup.py"
   cfg["updated_at"] = _now_iso()
+  return cfg
+
+
+def _norm_theme_value(v: object) -> str:
+  s = str(v or "").strip()
+  if s.startswith("#"):
+    return s.upper()
+  return s
+
+
+def _migrate_legacy_claude_theme(cfg: dict[str, Any]) -> dict[str, Any]:
+  if os.environ.get("JUSTSELL_KEEP_LEGACY_THEME", "").strip().lower() in {"1", "true", "yes", "on"}:
+    return cfg
+  settings = cfg.get("settings", {})
+  if not isinstance(settings, dict):
+    return cfg
+  cardnews = settings.get("cardnews", {})
+  if not isinstance(cardnews, dict):
+    return cfg
+  template = str(cardnews.get("template", "") or "").strip()
+  if "cardnews.claude_code_like" not in template:
+    return cfg
+  theme = cardnews.get("theme", {})
+  if not isinstance(theme, dict):
+    return cfg
+  for k, legacy_v in LEGACY_CLAUDE_THEME.items():
+    if _norm_theme_value(theme.get(k)) != _norm_theme_value(legacy_v):
+      return cfg
+  cardnews["theme"] = dict(DEFAULT_CLAUDE_THEME)
+  settings["cardnews"] = cardnews
+  cfg["settings"] = settings
   return cfg
 
 
@@ -193,6 +246,7 @@ def _wizard(config_path: Path) -> dict[str, Any]:
   cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
   if not isinstance(cfg, dict):
     cfg = {"version": 1, "settings": {}, "secrets": {}, "meta": {}}
+  cfg = _migrate_legacy_claude_theme(cfg)
 
   if config_path.exists():
     print("Detected existing config:")
@@ -224,25 +278,10 @@ def _wizard(config_path: Path) -> dict[str, Any]:
 
   print("")
   print("Step 1/4: Cardnews preset (design defaults)")
-  presets = ["BOC-like (solid dark + neon accent)", "Claude-like (white tech + app-first)", "Custom / keep current"]
+  presets = ["Claude-like (white tech + app-first)", "BOC-like (solid dark + neon accent)", "Custom / keep current"]
   preset_idx = _prompt_choice("Select preset", presets, default_index=0)
   preset: dict[str, str] = {}
   if preset_idx == 0:
-    preset = {
-      "template": "channels/instagram/templates/cardnews.boc_like.yaml",
-      "accent_primary": "#00E676",
-      "accent_secondary": "#111111",
-      "cover_fill": "#00E676",
-      "panel_fill": "#2B2B2B",
-      "bg_kind": "solid",
-      "bg_solid": "#2B2B2B",
-      "bg_from": "",
-      "bg_to": "",
-      "title_name": "Pretendard Bold",
-      "body_name": "Pretendard Regular",
-      "footer_name": "Pretendard Regular",
-    }
-  elif preset_idx == 1:
     preset = {
       "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
       "accent_primary": "#2563EB",
@@ -251,6 +290,21 @@ def _wizard(config_path: Path) -> dict[str, Any]:
       "panel_fill": "#FFFFFF",
       "bg_kind": "solid",
       "bg_solid": "#FFFFFF",
+      "bg_from": "",
+      "bg_to": "",
+      "title_name": "Pretendard Bold",
+      "body_name": "Pretendard Regular",
+      "footer_name": "Pretendard Regular",
+    }
+  elif preset_idx == 1:
+    preset = {
+      "template": "channels/instagram/templates/cardnews.boc_like.yaml",
+      "accent_primary": "#00E676",
+      "accent_secondary": "#111111",
+      "cover_fill": "#00E676",
+      "panel_fill": "#2B2B2B",
+      "bg_kind": "solid",
+      "bg_solid": "#2B2B2B",
       "bg_from": "",
       "bg_to": "",
       "title_name": "Pretendard Bold",
@@ -425,6 +479,7 @@ def main() -> int:
     return 0
 
   cfg = _read_json(config_path, {"version": 1, "settings": {}, "secrets": {}, "meta": {}})
+  cfg = _migrate_legacy_claude_theme(cfg)
   updates = {
     "public_base_url": args.public_base_url.strip(),
     "threads_app_id": args.threads_app_id.strip(),

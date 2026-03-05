@@ -8,6 +8,7 @@ import copy
 import os
 from pathlib import Path
 import re
+import subprocess
 from typing import Any
 import json
 
@@ -246,6 +247,196 @@ def _limit_list(values: list[str], n: int) -> list[str]:
   return [v for v in values if v.strip()][:n]
 
 
+def _sales_info_score(si: SalesInfo) -> int:
+  score = 0
+  for value in [si.project_name, si.one_liner, si.contact_channel, si.value_prop, si.proof, si.primary_cta]:
+    if value.strip():
+      score += 1
+  score += min(3, len(_limit_list(si.pains, 3)))
+  score += min(3, len(_limit_list(si.features, 3)))
+  score += min(3, len(_limit_list(si.differentiators, 3)))
+  return score
+
+
+def _read_text_if_exists(path: Path) -> str:
+  try:
+    return path.read_text(encoding="utf-8")
+  except Exception:
+    return ""
+
+
+def _first_sentence_from_readme(readme_text: str) -> str:
+  for raw in readme_text.splitlines():
+    line = raw.strip()
+    if not line:
+      continue
+    if line.startswith("#") or line.startswith("[") or line.startswith("|") or line.startswith("---"):
+      continue
+    if "README." in line or ("|" in line and "[" in line and "]" in line):
+      continue
+    return line
+  return ""
+
+
+def _scan_workspace_context(scan_root: Path) -> dict[str, Any]:
+  readme = _read_text_if_exists(scan_root / "README.md")
+  console_readme = _read_text_if_exists(scan_root / "apps" / "justsell_console" / "README.md")
+  workflow_doc = _read_text_if_exists(scan_root / "docs" / "WORKFLOW.md")
+  config_doc = _read_text_if_exists(scan_root / "docs" / "CONFIG.md")
+  definitions_doc = _read_text_if_exists(scan_root / "docs" / "DEFINITIONS.md")
+  server_py = _read_text_if_exists(scan_root / "apps" / "justsell_console" / "server.py")
+  corpus = "\n".join([readme, console_readme, workflow_doc, config_doc, definitions_doc, server_py])
+  corpus_l = corpus.lower()
+
+  channels: list[str] = []
+  channels_dir = scan_root / "channels"
+  if channels_dir.exists():
+    for p in sorted(channels_dir.iterdir()):
+      if p.is_dir():
+        channels.append(p.name)
+
+  project_name = "JustSell"
+  one_liner = _first_sentence_from_readme(readme) or "Local-first marketing automation plugin for Claude Code."
+  value_prop = "한 곳의 로컬 콘솔에서 생성, 렌더, 검토, 게시 직전 확인까지 이어집니다."
+  contact_channel = "/justsell:js console"
+  primary_cta = "로컬 콘솔을 열고 Generate + Render 루프를 바로 돌리기"
+
+  pains: list[str] = []
+  if "local-first" in corpus_l and "dry-run" in corpus_l:
+    pains.append("콘텐츠 운영 상태와 게시가 여러 도구에 흩어지기 쉽습니다")
+  if "oauth" in corpus_l and "public_base_url" in corpus_l:
+    pains.append("채널 연결과 게시 조건을 사람이 매번 기억해야 합니다")
+  if "sales_info.md" in corpus_l and "generate + render" in corpus_l:
+    pains.append("소스 문서가 비어 있으면 카피 품질도 바로 떨어집니다")
+
+  advantages: list[str] = []
+  if "local-first" in corpus_l or "~/.claude/.js" in corpus:
+    advantages.append("상태와 프로젝트를 `~/.claude/.js`에 로컬 우선 저장합니다")
+  if "dry-run" in corpus_l and "confirm=1" in corpus_l:
+    advantages.append("게시는 dry-run 기본이고 명시 확인이 있어야만 실행됩니다")
+  if "generate + render" in corpus_l and "preview" in corpus_l:
+    advantages.append("콘솔 한 화면에서 spec 선택, preview, generate, render를 묶습니다")
+  if {"threads", "instagram", "reddit"}.issubset(set(channels)) or "remotion" in corpus_l:
+    advantages.append("Threads, Instagram, Reddit, Remotion까지 한 워크플로우로 엮습니다")
+  if "conversation_policy.md" in corpus_l or "policy" in corpus_l:
+    advantages.append("프로젝트별 정책과 산출물을 분리해 운영 리스크를 낮춥니다")
+
+  limitations: list[str] = []
+  if "public_base_url" in corpus_l:
+    limitations.append("Instagram 게시에는 공개 URL(public_base_url) 준비가 필요합니다")
+  if "oauth" in corpus_l and "redirect uri" in corpus_l:
+    limitations.append("Threads·Meta OAuth 앱과 Redirect URI를 먼저 정확히 맞춰야 합니다")
+  if "sales_info.md" in corpus_l:
+    limitations.append("입력 문서가 비어 있으면 기본 카피 품질도 함께 약해집니다")
+
+  features: list[str] = []
+  if "console" in corpus_l:
+    features.append("로컬 대시보드에서 generate · render · publish 흐름 관리")
+  if "cardnews" in corpus_l:
+    features.append("Instagram 카드뉴스 스펙 생성과 PNG 렌더")
+  if "remotion" in corpus_l:
+    features.append("실제 UI 플로우 녹화를 기반으로 하는 Remotion 영상 생성")
+  if "threads" in corpus_l:
+    features.append("Threads 초안 생성과 dry-run/publish 분리")
+  if "project" in corpus_l and "policy" in corpus_l:
+    features.append("프로젝트별 source-of-truth와 정책 파일 운영")
+
+  differentiators = _limit_list(advantages[:], 3)
+  proof = "; ".join(
+    _limit_list(
+      [
+        "local-first storage under ~/.claude/.js" if "~/.claude/.js" in corpus else "",
+        "publish stays dry-run until confirm=1" if "confirm=1" in corpus_l else "",
+        "multi-channel output across " + ", ".join([c for c in ["instagram", "threads", "reddit", "linkedin", "twitter"] if c in channels or c in corpus_l]),
+      ],
+      3,
+    )
+  ).strip("; ")
+
+  return {
+    "project_name": project_name,
+    "one_liner": one_liner,
+    "contact_channel": contact_channel,
+    "value_prop": value_prop,
+    "primary_cta": primary_cta,
+    "pains": _limit_list(pains, 3),
+    "features": _limit_list(features, 5),
+    "differentiators": _limit_list(differentiators, 3),
+    "proof": proof,
+    "advantages": _limit_list(advantages, 4),
+    "limitations": _limit_list(limitations, 3),
+    "ui_home_lines": [
+      "Spec, Preview, Publish가 한 화면에 붙습니다",
+      "운영 루프를 끊지 않고 다음 액션으로 바로 이동합니다",
+    ],
+    "ui_setup_lines": [
+      "Setup, Project, Threads, Instagram을 탭으로 분리했습니다",
+      "템플릿과 OAuth 설정을 한 번에 저장합니다",
+    ],
+  }
+
+
+def _merge_sales_info_with_scan(si: SalesInfo, scan_ctx: dict[str, Any]) -> SalesInfo:
+  return SalesInfo(
+    project_name=si.project_name or str(scan_ctx.get("project_name", "")).strip(),
+    one_liner=si.one_liner or str(scan_ctx.get("one_liner", "")).strip(),
+    contact_channel=si.contact_channel or str(scan_ctx.get("contact_channel", "")).strip(),
+    icp_role=si.icp_role,
+    icp_stage=si.icp_stage,
+    current_alternatives=si.current_alternatives,
+    pains=si.pains or list(scan_ctx.get("pains", [])),
+    value_prop=si.value_prop or str(scan_ctx.get("value_prop", "")).strip(),
+    features=si.features or list(scan_ctx.get("features", [])),
+    differentiators=si.differentiators or list(scan_ctx.get("differentiators", [])),
+    proof=si.proof or str(scan_ctx.get("proof", "")).strip(),
+    primary_cta=si.primary_cta or str(scan_ctx.get("primary_cta", "")).strip(),
+  )
+
+
+def _capture_ui_images(project_dir: Path) -> dict[str, str]:
+  if os.environ.get("JUSTSELL_CAPTURE_UI", "").strip().lower() in {"0", "false", "no", "off"}:
+    return {}
+  script_path = _repo_root() / "scripts" / "capture_console_screens.py"
+  if not script_path.exists():
+    return {}
+  spec_dir = project_dir / "channels" / "instagram" / "cardnews"
+  assets_dir = spec_dir / "assets"
+  assets_dir.mkdir(parents=True, exist_ok=True)
+  p = subprocess.run(
+    ["python3", str(script_path), "--project", str(project_dir), "--out-dir", str(assets_dir)],
+    cwd=str(_repo_root()),
+    check=False,
+    text=True,
+    capture_output=True,
+    env=os.environ.copy(),
+  )
+  if p.returncode != 0:
+    return {}
+  payload_raw = p.stdout.strip().splitlines()
+  if not payload_raw:
+    return {}
+  try:
+    payload = json.loads(payload_raw[-1])
+  except Exception:
+    return {}
+  if not isinstance(payload, dict) or not bool(payload.get("ok")):
+    return {}
+  images = payload.get("images", {})
+  if not isinstance(images, dict):
+    return {}
+  out: dict[str, str] = {}
+  for key, value in images.items():
+    raw = str(value).strip()
+    if not raw:
+      continue
+    pth = Path(raw).expanduser().resolve()
+    try:
+      out[key] = str(pth.relative_to(spec_dir))
+    except Exception:
+      out[key] = str(pth)
+  return out
+
+
 def _bernays_frame(si: SalesInfo) -> dict[str, str]:
   pain = si.pains[0] if si.pains else ""
   old_belief = _first_nonempty(
@@ -421,7 +612,7 @@ def render_linkedin(si: SalesInfo, style: str) -> str:
   return "\n".join(out).strip() + "\n"
 
 
-def render_instagram_cardnews_spec(si: SalesInfo, *, style: str) -> dict[str, Any]:
+def render_instagram_cardnews_spec(si: SalesInfo, *, style: str, scan_ctx: dict[str, Any] | None = None) -> dict[str, Any]:
   f = _bernays_frame(si)
   title = _first_nonempty([si.one_liner, si.value_prop, si.project_name])
   new_standard = _first_nonempty([f["new_standard"], si.value_prop, title])
@@ -433,9 +624,107 @@ def render_instagram_cardnews_spec(si: SalesInfo, *, style: str) -> dict[str, An
   pain_lines = _limit_list(si.pains, 3)
   diff_lines = _limit_list(si.differentiators, 3)
   feat_lines = _limit_list(si.features, 3)
+  scan_advantages = _limit_list(list(scan_ctx.get("advantages", [])) if isinstance(scan_ctx, dict) else [], 4)
+  scan_limitations = _limit_list(list(scan_ctx.get("limitations", [])) if isinstance(scan_ctx, dict) else [], 3)
+  ui_images = dict(scan_ctx.get("images", {})) if isinstance(scan_ctx, dict) and isinstance(scan_ctx.get("images", {}), dict) else {}
+  ui_home_lines = _limit_list(list(scan_ctx.get("ui_home_lines", [])) if isinstance(scan_ctx, dict) else [], 2)
+  ui_setup_lines = _limit_list(list(scan_ctx.get("ui_setup_lines", [])) if isinstance(scan_ctx, dict) else [], 2)
+  scan_cover_title = title
+  if not scan_cover_title or len(scan_cover_title) > 36:
+    scan_cover_title = "로컬에서 끝내는\n마케팅 자동화"
 
-  if style == "comeback":
-    slides: list[dict[str, Any]] = [
+  if isinstance(scan_ctx, dict) and bool(scan_ctx):
+    slides = [
+      {
+        "kind": "cover",
+        "title": scan_cover_title,
+        "body": ["코드 스캔 기준으로 정리한 실제 구조", new_standard],
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "pills",
+        "title": "지금 왜 번거로운가",
+        "body": _limit_list(
+          [
+            f"\"{pain_lines[0]}\"" if pain_lines else "\"콘텐츠 운영이 여러 도구에 흩어집니다\"",
+            f"\"{pain_lines[1]}\"" if len(pain_lines) > 1 else "\"채널 연결 조건을 계속 기억해야 합니다\"",
+            f"\"{pain_lines[2]}\"" if len(pain_lines) > 2 else "\"입력 문서가 비면 카피도 바로 약해집니다\"",
+          ],
+          4,
+        ),
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "bullets",
+        "title": "코드에서 보이는 장점",
+        "body": scan_advantages or diff_lines or ["로컬 우선 저장", "dry-run publish", "콘솔 운영 루프"],
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "bullets",
+        "title": "한 화면에서",
+        "body": ui_home_lines or ["Spec, Preview, Publish 액션이 한 화면에 있습니다"],
+        "footer": "",
+        **(
+          {
+            "image": {
+              "path": ui_images["home"],
+              "rect": [96, 500, 984, 980],
+              "radius": 34,
+              "shadow": True,
+            }
+          }
+          if "home" in ui_images
+          else {}
+        ),
+      },
+      {
+        "kind": "bullets",
+        "title": "설정도 분리",
+        "body": ui_setup_lines or ["템플릿, 색, 폰트, OAuth 설정을 탭에서 분리합니다"],
+        "footer": "",
+        **(
+          {
+            "image": {
+              "path": ui_images["setup"],
+              "rect": [96, 500, 984, 980],
+              "radius": 34,
+              "shadow": True,
+            }
+          }
+          if "setup" in ui_images
+          else {}
+        ),
+      },
+      {
+        "kind": "bullets",
+        "title": "지금의 제약",
+        "body": scan_limitations or ["OAuth 설정 선행", "Instagram 게시엔 public URL 필요", "입력 문서가 비면 결과도 약해짐"],
+        "footer": si.project_name or "",
+      },
+      {
+        "kind": "cover",
+        "title": "CTA",
+        "body": [cta or "로컬 콘솔을 열고 Generate + Render 루프부터 시작"],
+        "footer": si.project_name or "",
+      },
+    ]
+    return {
+      "canvas": {"width": 1080, "height": 1350},
+      "theme": {
+        "background": {"kind": "solid", "color": "#FFFFFF"},
+        "accent_primary": "#2563EB",
+        "accent_secondary": "#0F172A",
+        "card": {"fill": "rgba(255,255,255,0.95)", "border": "rgba(15,23,42,0.14)", "radius": 40},
+        "text": {"title": "#0F172A", "body": "#0F172A", "dim": "#475569"},
+      },
+      "brand": {"name": si.project_name or "", "contact": si.contact_channel or ""},
+      "font": {"path": "", "title_size": 84, "body_size": 46, "footer_size": 30},
+      "layout": {"padding": 88, "card_padding": 72, "line_spacing": 14, "bullet_prefix": "", "show_slide_number": False},
+      "slides": slides,
+    }
+  elif style == "comeback":
+    slides = [
       {"kind": "cover", "title": title or "근황", "body": ["짧게 근황 공유드립니다.", si.value_prop or new_standard], "footer": si.project_name or ""},
       {"kind": "bullets", "title": "여전히 흔한 문제", "body": pain_lines or [hidden_cost], "footer": si.project_name or ""},
       {"kind": "bullets", "title": "지금 이렇게 단순화", "body": _limit_list([si.value_prop, *(feat_lines[:2] if feat_lines else [])], 3) or ["(제공 가치 추가)"], "footer": si.project_name or ""},
@@ -644,6 +933,13 @@ def main() -> int:
     raise FileNotFoundError(f"Missing: {sales_path} (expected SALES_INFO.md)")
 
   si = parse_sales_info(sales_path)
+  scan_ctx: dict[str, Any] | None = None
+  if _sales_info_score(si) < 5:
+    scan_ctx = _scan_workspace_context(_repo_root())
+    si = _merge_sales_info_with_scan(si, scan_ctx)
+    images = _capture_ui_images(project_dir)
+    if images:
+      scan_ctx["images"] = images
 
   if args.channel == "twitter":
     out = write_draft(project_dir, "twitter", render_twitter(si, args.style))
@@ -658,7 +954,7 @@ def main() -> int:
     print(str(out))
     return 0
 
-  spec = render_instagram_cardnews_spec(si, style=args.style)
+  spec = render_instagram_cardnews_spec(si, style=args.style, scan_ctx=scan_ctx)
   ensure_agent_settings(project_dir)
   ensure_parallel_roles(project_dir)
   ensure_creative_brief(project_dir)

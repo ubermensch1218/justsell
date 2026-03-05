@@ -72,10 +72,10 @@ HOME_CCS_JUSTSELL_CONFIG_PATH = Path.home() / ".ccs" / "justsell" / "config.json
 DEFAULT_CARDNEWS_SETTINGS: dict[str, object] = {
   "template": "channels/instagram/templates/cardnews.claude_code_like.yaml",
   "theme": {
-    "accent_primary": "#FF6A2A",
-    "accent_secondary": "#111111",
-    "cover_fill": "#FF6A2A",
-    "panel_fill": "#141414",
+    "accent_primary": "#2563EB",
+    "accent_secondary": "#0F172A",
+    "cover_fill": "#F3F8FF",
+    "panel_fill": "#FFFFFF",
     "bg_kind": "solid",
     "bg_solid": "#FFFFFF",
     "bg_from": "",
@@ -86,6 +86,17 @@ DEFAULT_CARDNEWS_SETTINGS: dict[str, object] = {
     "body_name": "Pretendard Regular",
     "footer_name": "Pretendard Regular",
   },
+}
+
+LEGACY_CLAUDE_THEME: dict[str, str] = {
+  "accent_primary": "#FF6A2A",
+  "accent_secondary": "#111111",
+  "cover_fill": "#FF6A2A",
+  "panel_fill": "#141414",
+  "bg_kind": "solid",
+  "bg_solid": "#FFFFFF",
+  "bg_from": "",
+  "bg_to": "",
 }
 
 
@@ -100,6 +111,34 @@ def _deep_merge_defaults(base: dict, defaults: dict) -> dict:
     if k not in base or base.get(k) is None:
       base[k] = v
   return base
+
+
+def _norm_theme_value(v: object) -> str:
+  s = str(v or "").strip()
+  if s.startswith("#"):
+    return s.upper()
+  return s
+
+
+def _migrate_legacy_claude_theme(settings: dict) -> dict:
+  if _env("JUSTSELL_KEEP_LEGACY_THEME", "").lower() in {"1", "true", "yes", "on"}:
+    return settings
+  cardnews = settings.get("cardnews", {})
+  if not isinstance(cardnews, dict):
+    return settings
+  template = str(cardnews.get("template", "") or "").strip()
+  if "cardnews.claude_code_like" not in template:
+    return settings
+  theme = cardnews.get("theme", {})
+  if not isinstance(theme, dict):
+    return settings
+  for k, legacy_v in LEGACY_CLAUDE_THEME.items():
+    if _norm_theme_value(theme.get(k)) != _norm_theme_value(legacy_v):
+      return settings
+
+  cardnews["theme"] = copy.deepcopy(DEFAULT_CARDNEWS_SETTINGS["theme"])
+  settings["cardnews"] = cardnews
+  return settings
 
 
 def _default_settings() -> dict:
@@ -315,6 +354,7 @@ def _config_settings() -> dict:
   s = cfg.get("settings", {})
   if not isinstance(s, dict):
     s = {}
+  s = _migrate_legacy_claude_theme(s)
   return _deep_merge_defaults(s, _default_settings())
 
 
@@ -1767,7 +1807,7 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
 
   <div id="setup" class="card" style="padding:14px;display:{"block" if selected_tab == "setup" else "none"}">
     <h2 style="padding:0;margin:0 0 8px 0">Setup</h2>
-    {"<div style='margin:8px 0 10px;padding:10px 12px;border:1px solid rgba(0,230,118,0.35);border-radius:10px;background:rgba(0,230,118,0.08);font-size:12px;color:rgba(0,230,118,0.95);font-weight:700'>Saved. Setup values were updated.</div>" if saved_notice else ""}
+    {"<div style='margin:8px 0 10px;padding:10px 12px;border:1px solid rgba(37,99,235,0.28);border-radius:10px;background:rgba(37,99,235,0.08);font-size:12px;color:rgba(37,99,235,0.95);font-weight:700'>Saved. Setup values were updated.</div>" if saved_notice else ""}
     <div class="hint">Config: <code>~/.claude/.js/config.json</code> (respects <code>CLAUDE_CONFIG_DIR</code>)</div>
     <div class="hint">Custom templates: put YAML/JSON files in <code>~/.claude/.js/templates/instagram/</code> and they appear in the dropdown.</div>
     <form method="POST" action="/api/config/update" style="margin-top:12px">
@@ -1799,12 +1839,12 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
       <div class="section-title">2. Card Colors</div>
       <div class="hint">Saved to config. Renderer ENV can still override.</div>
       <div class="grid3">
-        <div class="field"><label>accent_primary</label><input type="text" name="cardnews_accent_primary" value="{theme_val("accent_primary")}" placeholder="#00E676" />{field_error("cardnews_accent_primary")}</div>
-        <div class="field"><label>accent_secondary</label><input type="text" name="cardnews_accent_secondary" value="{theme_val("accent_secondary")}" placeholder="#111111" />{field_error("cardnews_accent_secondary")}</div>
-        <div class="field"><label>cover_fill</label><input type="text" name="cardnews_cover_fill" value="{theme_val("cover_fill")}" placeholder="#00E676" />{field_error("cardnews_cover_fill")}</div>
+        <div class="field"><label>accent_primary</label><input type="text" name="cardnews_accent_primary" value="{theme_val("accent_primary")}" placeholder="#2563EB" />{field_error("cardnews_accent_primary")}</div>
+        <div class="field"><label>accent_secondary</label><input type="text" name="cardnews_accent_secondary" value="{theme_val("accent_secondary")}" placeholder="#0F172A" />{field_error("cardnews_accent_secondary")}</div>
+        <div class="field"><label>cover_fill</label><input type="text" name="cardnews_cover_fill" value="{theme_val("cover_fill")}" placeholder="#F3F8FF" />{field_error("cardnews_cover_fill")}</div>
       </div>
       <div class="grid3">
-        <div class="field"><label>panel_fill</label><input type="text" name="cardnews_panel_fill" value="{theme_val("panel_fill")}" placeholder="#141414" />{field_error("cardnews_panel_fill")}</div>
+        <div class="field"><label>panel_fill</label><input type="text" name="cardnews_panel_fill" value="{theme_val("panel_fill")}" placeholder="#FFFFFF" />{field_error("cardnews_panel_fill")}</div>
         <div class="field">
           <label>bg_kind</label>
           <select name="cardnews_bg_kind">
@@ -1817,8 +1857,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
         <div class="field"><label>bg_solid</label><input type="text" name="cardnews_bg_solid" value="{theme_val("bg_solid")}" placeholder="#FFFFFF" />{field_error("cardnews_bg_solid")}</div>
       </div>
       <div class="grid2">
-        <div class="field"><label>bg_from</label><input type="text" name="cardnews_bg_from" value="{theme_val("bg_from")}" placeholder="#050505" />{field_error("cardnews_bg_from")}</div>
-        <div class="field"><label>bg_to</label><input type="text" name="cardnews_bg_to" value="{theme_val("bg_to")}" placeholder="#0B0F19" />{field_error("cardnews_bg_to")}</div>
+        <div class="field"><label>bg_from</label><input type="text" name="cardnews_bg_from" value="{theme_val("bg_from")}" placeholder="#FFFFFF" />{field_error("cardnews_bg_from")}</div>
+        <div class="field"><label>bg_to</label><input type="text" name="cardnews_bg_to" value="{theme_val("bg_to")}" placeholder="#F4F7FB" />{field_error("cardnews_bg_to")}</div>
       </div>
 
       <div class="section-title">3. Fonts</div>
@@ -1829,7 +1869,7 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
       <div class="grid3">
         <div class="field">
           <label>title_name</label>
-          <input type="text" list="font-name-options" name="cardnews_title_name" value="{font_val("title_name")}" placeholder="GDmarket Bold" />
+          <input type="text" list="font-name-options" name="cardnews_title_name" value="{font_val("title_name")}" placeholder="Pretendard Bold" />
           <div class="field-help">Input field (custom value allowed).</div>
         </div>
         <div class="field">
@@ -1891,8 +1931,8 @@ def _connect_page(*, qs: dict[str, list[str]] | None = None) -> bytes:
     <div class="divider hint">Presets</div>
     <div class="hint">Use presets to fill template, key colors, and fonts. You can edit before saving.</div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button type="button" class="primary" onclick="applyPreset('claude')">Claude-like (default)</button>
       <button type="button" onclick="applyPreset('boc')">BOC-like</button>
-      <button type="button" onclick="applyPreset('claude')">Claude-like</button>
     </div>
   </div>
 
@@ -1973,10 +2013,10 @@ JUSTSELL_GRAPH_API_VERSION (default v20.0)
         setValue('cardnews_footer_name', 'Pretendard Regular');
       }} else if (kind === 'claude') {{
         setValue('cardnews_template', 'channels/instagram/templates/cardnews.claude_code_like.yaml');
-        setValue('cardnews_accent_primary', '#FF6A2A');
-        setValue('cardnews_accent_secondary', '#111111');
-        setValue('cardnews_cover_fill', '#FF6A2A');
-        setValue('cardnews_panel_fill', '#141414');
+        setValue('cardnews_accent_primary', '#2563EB');
+        setValue('cardnews_accent_secondary', '#0F172A');
+        setValue('cardnews_cover_fill', '#F3F8FF');
+        setValue('cardnews_panel_fill', '#FFFFFF');
         setValue('cardnews_bg_kind', 'solid');
         setValue('cardnews_bg_solid', '#FFFFFF');
         setValue('cardnews_bg_from', '');
